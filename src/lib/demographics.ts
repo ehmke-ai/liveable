@@ -258,6 +258,154 @@ export function medianAgeYouthIntensity(
   return (maxAge - medianAge) / (maxAge - minAge)
 }
 
+export type PoliticalLeanPoint = {
+  year: number
+  /** Far-left / radical left parties — ParlGov left–right < 3 */
+  leftWing: number
+  /** Centre-left parties — ParlGov left–right 3–5 */
+  leftOfCenter: number
+  /** Centre-right parties — ParlGov left–right 5–7.5 */
+  rightOfCenter: number
+  /** Far-right / radical right parties — ParlGov left–right ≥ 7.5 */
+  rightWing: number
+}
+
+/**
+ * Parliamentary vote share by left–right band over time.
+ * Europe: ParlGov party left–right scores (0–10) aggregated into four bands;
+ * parties at exactly 5.0 and parties without a score are omitted.
+ * Recent elections after ParlGov coverage use the same thresholds on known party scores.
+ * United States: Democratic → left of centre, Republican → right of centre
+ * (presidential popular vote; wing bands unused).
+ */
+export const politicalLeanHistoryByCountry: Record<string, PoliticalLeanPoint[]> = {
+  Germany: [
+    { year: 1960, leftWing: 2, leftOfCenter: 36, rightOfCenter: 61, rightWing: 0 },
+    { year: 1970, leftWing: 0, leftOfCenter: 43, rightOfCenter: 52, rightWing: 4 },
+    { year: 1980, leftWing: 2, leftOfCenter: 43, rightOfCenter: 55, rightWing: 0 },
+    { year: 1990, leftWing: 7, leftOfCenter: 34, rightOfCenter: 55, rightWing: 2 },
+    { year: 2000, leftWing: 12, leftOfCenter: 41, rightOfCenter: 41, rightWing: 3 },
+    { year: 2010, leftWing: 23, leftOfCenter: 23, rightOfCenter: 48, rightWing: 2 },
+    { year: 2020, leftWing: 20, leftOfCenter: 26, rightOfCenter: 38, rightWing: 10 },
+    { year: 2025, leftWing: 25, leftOfCenter: 16, rightOfCenter: 33, rightWing: 21 },
+  ],
+  Austria: [
+    { year: 1960, leftWing: 3, leftOfCenter: 45, rightOfCenter: 44, rightWing: 8 },
+    { year: 1970, leftWing: 1, leftOfCenter: 48, rightOfCenter: 45, rightWing: 6 },
+    { year: 1980, leftWing: 1, leftOfCenter: 51, rightOfCenter: 42, rightWing: 6 },
+    { year: 1990, leftWing: 7, leftOfCenter: 43, rightOfCenter: 32, rightWing: 17 },
+    { year: 2000, leftWing: 7, leftOfCenter: 37, rightOfCenter: 27, rightWing: 27 },
+    { year: 2010, leftWing: 10, leftOfCenter: 33, rightOfCenter: 26, rightWing: 28 },
+    { year: 2020, leftWing: 16, leftOfCenter: 21, rightOfCenter: 46, rightWing: 16 },
+    { year: 2025, leftWing: 11, leftOfCenter: 21, rightOfCenter: 35, rightWing: 29 },
+  ],
+  Switzerland: [
+    { year: 1960, leftWing: 29, leftOfCenter: 32, rightOfCenter: 38, rightWing: 0 },
+    { year: 1970, leftWing: 26, leftOfCenter: 30, rightOfCenter: 35, rightWing: 8 },
+    { year: 1980, leftWing: 27, leftOfCenter: 28, rightOfCenter: 38, rightWing: 2 },
+    { year: 1990, leftWing: 28, leftOfCenter: 23, rightOfCenter: 36, rightWing: 11 },
+    { year: 2000, leftWing: 29, leftOfCenter: 18, rightOfCenter: 45, rightWing: 5 },
+    { year: 2010, leftWing: 33, leftOfCenter: 14, rightOfCenter: 47, rightWing: 3 },
+    { year: 2020, leftWing: 39, leftOfCenter: 13, rightOfCenter: 43, rightWing: 2 },
+    { year: 2025, leftWing: 36, leftOfCenter: 14, rightOfCenter: 42, rightWing: 0 },
+  ],
+  Netherlands: [
+    { year: 1960, leftWing: 4, leftOfCenter: 30, rightOfCenter: 61, rightWing: 3 },
+    { year: 1970, leftWing: 7, leftOfCenter: 37, rightOfCenter: 50, rightWing: 4 },
+    { year: 1980, leftWing: 6, leftOfCenter: 40, rightOfCenter: 48, rightWing: 4 },
+    { year: 1990, leftWing: 5, leftOfCenter: 40, rightOfCenter: 50, rightWing: 5 },
+    { year: 2000, leftWing: 11, leftOfCenter: 38, rightOfCenter: 43, rightWing: 6 },
+    { year: 2010, leftWing: 16, leftOfCenter: 27, rightOfCenter: 37, rightWing: 17 },
+    { year: 2020, leftWing: 11, leftOfCenter: 23, rightOfCenter: 36, rightWing: 20 },
+    { year: 2025, leftWing: 21, leftOfCenter: 6, rightOfCenter: 38, rightWing: 28 },
+  ],
+  Norway: [
+    { year: 1960, leftWing: 5, leftOfCenter: 54, rightOfCenter: 18, rightWing: 19 },
+    { year: 1970, leftWing: 4, leftOfCenter: 56, rightOfCenter: 18, rightWing: 19 },
+    { year: 1980, leftWing: 6, leftOfCenter: 44, rightOfCenter: 13, rightWing: 36 },
+    { year: 1990, leftWing: 10, leftOfCenter: 41, rightOfCenter: 12, rightWing: 35 },
+    { year: 2000, leftWing: 14, leftOfCenter: 30, rightOfCenter: 18, rightWing: 36 },
+    { year: 2010, leftWing: 8, leftOfCenter: 42, rightOfCenter: 9, rightWing: 40 },
+    { year: 2020, leftWing: 16, leftOfCenter: 40, rightOfCenter: 9, rightWing: 32 },
+    { year: 2025, leftWing: 16, leftOfCenter: 40, rightOfCenter: 9, rightWing: 32 },
+  ],
+  Denmark: [
+    { year: 1960, leftWing: 7, leftOfCenter: 48, rightOfCenter: 44, rightWing: 0 },
+    { year: 1970, leftWing: 12, leftOfCenter: 52, rightOfCenter: 36, rightWing: 0 },
+    { year: 1980, leftWing: 12, leftOfCenter: 44, rightOfCenter: 33, rightWing: 11 },
+    { year: 1990, leftWing: 12, leftOfCenter: 41, rightOfCenter: 39, rightWing: 6 },
+    { year: 2000, leftWing: 9, leftOfCenter: 34, rightOfCenter: 44, rightWing: 12 },
+    { year: 2010, leftWing: 16, leftOfCenter: 34, rightOfCenter: 37, rightWing: 12 },
+    { year: 2020, leftWing: 18, leftOfCenter: 34, rightOfCenter: 34, rightWing: 13 },
+    { year: 2025, leftWing: 17, leftOfCenter: 31, rightOfCenter: 36, rightWing: 14 },
+  ],
+  Sweden: [
+    { year: 1960, leftWing: 4, leftOfCenter: 48, rightOfCenter: 31, rightWing: 17 },
+    { year: 1970, leftWing: 5, leftOfCenter: 45, rightOfCenter: 38, rightWing: 12 },
+    { year: 1980, leftWing: 6, leftOfCenter: 43, rightOfCenter: 30, rightWing: 20 },
+    { year: 1990, leftWing: 4, leftOfCenter: 41, rightOfCenter: 25, rightWing: 29 },
+    { year: 2000, leftWing: 12, leftOfCenter: 41, rightOfCenter: 22, rightWing: 23 },
+    { year: 2010, leftWing: 6, leftOfCenter: 38, rightOfCenter: 19, rightWing: 36 },
+    { year: 2020, leftWing: 8, leftOfCenter: 33, rightOfCenter: 20, rightWing: 37 },
+    { year: 2025, leftWing: 7, leftOfCenter: 35, rightOfCenter: 17, rightWing: 40 },
+  ],
+  Poland: [
+    { year: 1990, leftWing: 14, leftOfCenter: 21, rightOfCenter: 52, rightWing: 3 },
+    { year: 2000, leftWing: 41, leftOfCenter: 19, rightOfCenter: 21, rightWing: 17 },
+    { year: 2010, leftWing: 8, leftOfCenter: 8, rightOfCenter: 51, rightWing: 31 },
+    { year: 2020, leftWing: 13, leftOfCenter: 9, rightOfCenter: 34, rightWing: 44 },
+    { year: 2025, leftWing: 9, leftOfCenter: 0, rightOfCenter: 31, rightWing: 43 },
+  ],
+  Italy: [
+    { year: 1960, leftWing: 23, leftOfCenter: 20, rightOfCenter: 49, rightWing: 7 },
+    { year: 1970, leftWing: 31, leftOfCenter: 16, rightOfCenter: 47, rightWing: 4 },
+    { year: 1980, leftWing: 32, leftOfCenter: 20, rightOfCenter: 41, rightWing: 5 },
+    { year: 1990, leftWing: 25, leftOfCenter: 22, rightOfCenter: 35, rightWing: 14 },
+    { year: 2000, leftWing: 25, leftOfCenter: 21, rightOfCenter: 37, rightWing: 16 },
+    { year: 2010, leftWing: 37, leftOfCenter: 4, rightOfCenter: 46, rightWing: 11 },
+    { year: 2020, leftWing: 23, leftOfCenter: 1, rightOfCenter: 19, rightWing: 22 },
+    { year: 2025, leftWing: 20, leftOfCenter: 4, rightOfCenter: 22, rightWing: 36 },
+  ],
+  France: [
+    { year: 1960, leftWing: 19, leftOfCenter: 26, rightOfCenter: 2, rightWing: 53 },
+    { year: 1970, leftWing: 24, leftOfCenter: 16, rightOfCenter: 19, rightWing: 40 },
+    { year: 1980, leftWing: 16, leftOfCenter: 49, rightOfCenter: 28, rightWing: 3 },
+    { year: 1990, leftWing: 13, leftOfCenter: 36, rightOfCenter: 38, rightWing: 12 },
+    { year: 2000, leftWing: 10, leftOfCenter: 31, rightOfCenter: 39, rightWing: 19 },
+    { year: 2010, leftWing: 7, leftOfCenter: 41, rightOfCenter: 32, rightWing: 17 },
+    { year: 2020, leftWing: 30, leftOfCenter: 3, rightOfCenter: 38, rightWing: 25 },
+    { year: 2025, leftWing: 30, leftOfCenter: 3, rightOfCenter: 38, rightWing: 25 },
+  ],
+  Ireland: [
+    { year: 1960, leftWing: 1, leftOfCenter: 12, rightOfCenter: 78, rightWing: 0 },
+    { year: 1970, leftWing: 0, leftOfCenter: 17, rightOfCenter: 80, rightWing: 0 },
+    { year: 1980, leftWing: 2, leftOfCenter: 10, rightOfCenter: 82, rightWing: 0 },
+    { year: 1990, leftWing: 8, leftOfCenter: 10, rightOfCenter: 73, rightWing: 5 },
+    { year: 2000, leftWing: 11, leftOfCenter: 11, rightOfCenter: 64, rightWing: 4 },
+    { year: 2010, leftWing: 14, leftOfCenter: 19, rightOfCenter: 54, rightWing: 0 },
+    { year: 2020, leftWing: 35, leftOfCenter: 7, rightOfCenter: 45, rightWing: 0 },
+    { year: 2025, leftWing: 25, leftOfCenter: 9, rightOfCenter: 47, rightWing: 4 },
+  ],
+  "United States": [
+    { year: 1960, leftWing: 0, leftOfCenter: 50, rightOfCenter: 50, rightWing: 0 },
+    { year: 1970, leftWing: 0, leftOfCenter: 43, rightOfCenter: 43, rightWing: 0 },
+    { year: 1980, leftWing: 0, leftOfCenter: 41, rightOfCenter: 51, rightWing: 0 },
+    { year: 1990, leftWing: 0, leftOfCenter: 46, rightOfCenter: 53, rightWing: 0 },
+    { year: 2000, leftWing: 0, leftOfCenter: 48, rightOfCenter: 48, rightWing: 0 },
+    { year: 2010, leftWing: 0, leftOfCenter: 53, rightOfCenter: 46, rightWing: 0 },
+    { year: 2020, leftWing: 0, leftOfCenter: 51, rightOfCenter: 47, rightWing: 0 },
+    { year: 2025, leftWing: 0, leftOfCenter: 48, rightOfCenter: 50, rightWing: 0 },
+  ],
+}
+
+export const politicalLeanHistoryCountries = demographicsData.map((d) => d.country)
+
+export const DEFAULT_POLITICAL_LEAN_COUNTRY = "Austria"
+
+export function getPoliticalLeanHistory(country: string): PoliticalLeanPoint[] {
+  return politicalLeanHistoryByCountry[country] ?? []
+}
+
 export const COLORS = {
   native: "#ffffff",
   catholic: "#e23d3d",
@@ -266,4 +414,8 @@ export const COLORS = {
   anti: "#d9782d",
   marketCap: "#2db88a",
   medianAge: "#58a0c8",
+  leftWing: "#1d4ed8",
+  leftOfCenter: "#7dd3fc",
+  rightOfCenter: "#fca5a5",
+  rightWing: "#b91c1c",
 } as const

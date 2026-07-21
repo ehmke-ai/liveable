@@ -6,6 +6,7 @@ import { MarketCapChart } from "@/components/market-cap-chart"
 import { MedianAgeChart } from "@/components/median-age-chart"
 import { NativePopulationChart } from "@/components/native-population-chart"
 import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
+import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -198,6 +199,37 @@ export default function HomePage() {
           <NativeShareTrendChart />
           <Separator className="my-4" />
           <Swatch color={COLORS.native} label="Native / white population share (approx.)" />
+        </CardContent>
+      </Card>
+
+      <header className="mt-12 mb-7">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          Political leanings over time
+        </h1>
+        <p className="max-w-xl text-base text-muted-foreground leading-relaxed">
+          Parliamentary vote share in four left–right bands from 1960 to 2025 for a selected
+          country. Pure centre and uncoded parties are omitted, so the lines need not sum to
+          100%.
+        </p>
+      </header>
+
+      <Card className="border-border bg-card shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="sr-only">Political leanings trend chart</CardTitle>
+          <CardDescription className="sr-only">
+            Line chart of left-wing, left-of-center, right-of-center, and right-wing vote share
+            over time for the selected country
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PoliticalLeanTrendChart />
+          <Separator className="my-4" />
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <Swatch color={COLORS.leftWing} label="Left wing" />
+            <Swatch color={COLORS.leftOfCenter} label="Left of center" />
+            <Swatch color={COLORS.rightOfCenter} label="Right of center" />
+            <Swatch color={COLORS.rightWing} label="Right wing" />
+          </div>
         </CardContent>
       </Card>
 
@@ -453,8 +485,13 @@ export default function HomePage() {
         for median age is inverted within European countries (younger = stronger). The native /
         white share over-time series is an approximate reconstruction ending at the snapshot
         shares above (Census non-Hispanic White alone for the United States; ethnic European /
-        autochthonous proxies for Europe). Values are rounded for comparison; years and
-        definitions differ by country.
+        autochthonous proxies for Europe). Political leanings over time use ParlGov party
+        left–right scores (0–10) aggregated into four bands: left wing (&lt;3), left of centre
+        (3–5), right of centre (5–7.5), and right wing (≥7.5); parties at exactly 5.0 or without
+        a score are omitted. Recent elections after ParlGov coverage apply the same thresholds.
+        For the United States, Democratic and Republican presidential popular vote are shown as
+        left of centre and right of centre. Poland starts in 1990 after competitive multi-party
+        elections. Values are rounded for comparison; years and definitions differ by country.
       </footer>
     </main>
   )
