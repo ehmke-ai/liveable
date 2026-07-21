@@ -5,6 +5,7 @@ import { EuropeMap } from "@/components/europe-map"
 import { MarketCapChart } from "@/components/market-cap-chart"
 import { MedianAgeChart } from "@/components/median-age-chart"
 import { NativePopulationChart } from "@/components/native-population-chart"
+import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -173,6 +174,30 @@ export default function HomePage() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <header className="mt-12 mb-7">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          Native / white share over time
+        </h1>
+        <p className="max-w-xl text-base text-muted-foreground leading-relaxed">
+          Approximate native / white population share from 1960 to 2025 for a selected
+          country. Use the dropdown to compare trends across countries.
+        </p>
+      </header>
+
+      <Card className="border-border bg-card shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="sr-only">Native / white share trend chart</CardTitle>
+          <CardDescription className="sr-only">
+            Line chart of native / white population share over time for the selected country
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NativeShareTrendChart />
+          <Separator className="my-4" />
+          <Swatch color={COLORS.native} label="Native / white population share (approx.)" />
         </CardContent>
       </Card>
 
@@ -425,8 +450,11 @@ export default function HomePage() {
         white median age uses Eurostat “born in reporting country” figures for 1 January 2025
         for European countries (a proxy where race statistics are not published); the United
         States uses Census Bureau non-Hispanic White alone median age (July 2024). Map coloring
-        for median age is inverted within European countries (younger = stronger). Values are
-        rounded for comparison; years and definitions differ by country.
+        for median age is inverted within European countries (younger = stronger). The native /
+        white share over-time series is an approximate reconstruction ending at the snapshot
+        shares above (Census non-Hispanic White alone for the United States; ethnic European /
+        autochthonous proxies for Europe). Values are rounded for comparison; years and
+        definitions differ by country.
       </footer>
     </main>
   )

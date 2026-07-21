@@ -99,6 +99,149 @@ export function formatMedianAge(years: number): string {
   return Number.isInteger(years) ? `${years}` : years.toFixed(1)
 }
 
+export type NativeSharePoint = {
+  year: number
+  /** Approximate native / white population share (%) */
+  native: number
+}
+
+/**
+ * Approximate native / white population share over time.
+ * Europe: ethnic European / autochthonous proxy (not identical to foreign-born).
+ * United States: non-Hispanic White alone (Census).
+ * Series end at the snapshot `native` values above.
+ */
+export const nativeShareHistoryByCountry: Record<string, NativeSharePoint[]> = {
+  Germany: [
+    { year: 1960, native: 99 },
+    { year: 1970, native: 96 },
+    { year: 1980, native: 93 },
+    { year: 1990, native: 91 },
+    { year: 2000, native: 88 },
+    { year: 2010, native: 84 },
+    { year: 2020, native: 81 },
+    { year: 2025, native: 80 },
+  ],
+  Austria: [
+    { year: 1960, native: 98 },
+    { year: 1970, native: 96 },
+    { year: 1980, native: 95 },
+    { year: 1990, native: 93 },
+    { year: 2000, native: 90 },
+    { year: 2010, native: 86 },
+    { year: 2020, native: 82 },
+    { year: 2025, native: 81 },
+  ],
+  Switzerland: [
+    { year: 1960, native: 89 },
+    { year: 1970, native: 83 },
+    { year: 1980, native: 84 },
+    { year: 1990, native: 82 },
+    { year: 2000, native: 79 },
+    { year: 2010, native: 77 },
+    { year: 2020, native: 75 },
+    { year: 2025, native: 75 },
+  ],
+  Netherlands: [
+    { year: 1960, native: 98 },
+    { year: 1970, native: 96 },
+    { year: 1980, native: 94 },
+    { year: 1990, native: 91 },
+    { year: 2000, native: 86 },
+    { year: 2010, native: 80 },
+    { year: 2020, native: 76 },
+    { year: 2025, native: 75 },
+  ],
+  Norway: [
+    { year: 1960, native: 99 },
+    { year: 1970, native: 98 },
+    { year: 1980, native: 97 },
+    { year: 1990, native: 96 },
+    { year: 2000, native: 94 },
+    { year: 2010, native: 90 },
+    { year: 2020, native: 86 },
+    { year: 2025, native: 85 },
+  ],
+  Denmark: [
+    { year: 1960, native: 99 },
+    { year: 1970, native: 98 },
+    { year: 1980, native: 97 },
+    { year: 1990, native: 96 },
+    { year: 2000, native: 93 },
+    { year: 2010, native: 89 },
+    { year: 2020, native: 85 },
+    { year: 2025, native: 84 },
+  ],
+  Sweden: [
+    { year: 1960, native: 96 },
+    { year: 1970, native: 94 },
+    { year: 1980, native: 92 },
+    { year: 1990, native: 91 },
+    { year: 2000, native: 88 },
+    { year: 2010, native: 84 },
+    { year: 2020, native: 79 },
+    { year: 2025, native: 78 },
+  ],
+  Poland: [
+    { year: 1960, native: 98 },
+    { year: 1970, native: 98 },
+    { year: 1980, native: 98 },
+    { year: 1990, native: 98 },
+    { year: 2000, native: 98 },
+    { year: 2010, native: 98 },
+    { year: 2020, native: 97 },
+    { year: 2025, native: 97 },
+  ],
+  Italy: [
+    { year: 1960, native: 99 },
+    { year: 1970, native: 99 },
+    { year: 1980, native: 99 },
+    { year: 1990, native: 98 },
+    { year: 2000, native: 97 },
+    { year: 2010, native: 94 },
+    { year: 2020, native: 92 },
+    { year: 2025, native: 91 },
+  ],
+  France: [
+    { year: 1960, native: 93 },
+    { year: 1970, native: 91 },
+    { year: 1980, native: 89 },
+    { year: 1990, native: 88 },
+    { year: 2000, native: 86 },
+    { year: 2010, native: 83 },
+    { year: 2020, native: 81 },
+    { year: 2025, native: 80 },
+  ],
+  Ireland: [
+    { year: 1960, native: 99 },
+    { year: 1970, native: 99 },
+    { year: 1980, native: 98 },
+    { year: 1990, native: 97 },
+    { year: 2000, native: 94 },
+    { year: 2010, native: 87 },
+    { year: 2020, native: 80 },
+    { year: 2025, native: 77 },
+  ],
+  "United States": [
+    { year: 1960, native: 85 },
+    { year: 1970, native: 83 },
+    { year: 1980, native: 80 },
+    { year: 1990, native: 76 },
+    { year: 2000, native: 69 },
+    { year: 2010, native: 64 },
+    { year: 2020, native: 58 },
+    { year: 2025, native: 58 },
+  ],
+}
+
+export const nativeShareHistoryCountries = demographicsData.map((d) => d.country)
+
+export const DEFAULT_NATIVE_SHARE_COUNTRY = "Austria"
+
+export function getNativeShareHistory(country: string): NativeSharePoint[] {
+  return nativeShareHistoryByCountry[country] ?? []
+}
+
 /** Log-normalized intensity in [0, 1] for choropleth / bar opacity */
 export function marketCapIntensity(billions: number, maxBillions: number): number {
   if (billions <= 0 || maxBillions <= 0) return 0
