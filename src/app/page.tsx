@@ -1,7 +1,7 @@
 import { AntiImmigrationChart } from "@/components/anti-immigration-chart"
 import { DemographicsBarChart } from "@/components/demographics-bar-chart"
 import { DemographicsDataTable } from "@/components/demographics-data-table"
-import { EuropeMap } from "@/components/europe-map"
+// import { EuropeMap } from "@/components/europe-map"
 import { MarketCapChart } from "@/components/market-cap-chart"
 import { MedianAgeChart } from "@/components/median-age-chart"
 import { NativePopulationChart } from "@/components/native-population-chart"
@@ -29,7 +29,7 @@ import {
   demographicsData,
   formatMarketCap,
   formatMedianAge,
-  mapDemographicsData,
+  // mapDemographicsData,
   marketCapIntensity,
   maxAntiImmig,
   maxMarketCap,
@@ -58,11 +58,11 @@ function Swatch({ color, label }: { color: string; label: string }) {
 
 export default function HomePage() {
   const countryCount = demographicsData.length
-  const mapCountryCount = mapDemographicsData.length
+  // const mapCountryCount = mapDemographicsData.length
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
-      <header className="mb-7">
+      {/* <header className="mb-7">
         <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
           Europe demographics map
         </h1>
@@ -76,7 +76,7 @@ export default function HomePage() {
         <CardContent className="pt-6">
           <EuropeMap />
         </CardContent>
-      </Card>
+      </Card> */}
 
       <header className="mt-12 mb-7">
         <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
