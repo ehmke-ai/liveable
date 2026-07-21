@@ -25,6 +25,7 @@ import {
   COLORS,
   demographicsData,
   formatMarketCap,
+  formatMedianAge,
   type CountryDemographics,
 } from "@/lib/demographics"
 import { cn } from "@/lib/utils"
@@ -134,6 +135,22 @@ const columns: ColumnDef<CountryDemographics>[] = [
         style={{ color: COLORS.marketCap }}
       >
         {formatMarketCap(row.getValue("marketCap"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "medianAge",
+    header: ({ column }) => (
+      <div className="flex justify-end">
+        <SortableHeader column={column} title="Native median age" />
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div
+        className="text-right font-medium tabular-nums"
+        style={{ color: COLORS.medianAge }}
+      >
+        {formatMedianAge(row.getValue("medianAge"))}
       </div>
     ),
   },

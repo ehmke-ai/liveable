@@ -15,14 +15,18 @@ import {
   COLORS,
   demographicsByIso,
   formatMarketCap,
+  formatMedianAge,
   mapDemographicsData,
   marketCapIntensity,
   maxAntiImmig,
   maxMapMarketCap,
+  maxMapMedianAge,
+  medianAgeYouthIntensity,
+  minMapMedianAge,
   type CountryDemographics,
 } from "@/lib/demographics"
 
-type MapMetric = "antiImmig" | "native" | "marketCap"
+type MapMetric = "antiImmig" | "native" | "marketCap" | "medianAge"
 
 type CountryFeature = Feature<Geometry, { name: string }> & { id?: string | number }
 type Ring = number[][]
@@ -230,6 +234,18 @@ function fillFor(
     return `rgba(45, 184, 138, ${alpha})`
   }
 
+  if (metric === "medianAge") {
+    const t = medianAgeYouthIntensity(
+      data.medianAge,
+      minMapMedianAge,
+      maxMapMedianAge
+    )
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(88, 160, 200, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(140, 200, 230, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(88, 160, 200, ${alpha})`
+  }
+
   const t = data.native / 100
   const v = Math.round(40 + t * 215)
   if (selected) return `rgb(${Math.min(255, v + 25)},${Math.min(255, v + 25)},${Math.min(255, v + 25)})`
@@ -240,6 +256,7 @@ function fillFor(
 function metricLabel(data: CountryDemographics, metric: MapMetric): string {
   if (metric === "antiImmig") return `${data.antiImmig}%`
   if (metric === "marketCap") return formatMarketCap(data.marketCap)
+  if (metric === "medianAge") return `${formatMedianAge(data.medianAge)} yrs`
   return `${data.native}%`
 }
 
@@ -247,6 +264,7 @@ function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): stri
   if (selected) {
     if (metric === "antiImmig") return "#f0b27a"
     if (metric === "marketCap") return "#7eecc0"
+    if (metric === "medianAge") return "#9ecce8"
     return "#ffffff"
   }
   if (hovered) return "#9aa6ba"
@@ -370,6 +388,14 @@ export function EuropeMap() {
           >
             Market cap
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={metric === "medianAge" ? "default" : "secondary"}
+            onClick={() => setMetric("medianAge")}
+          >
+            Native median age
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
           Hover for preview · click a highlighted country for details
@@ -461,6 +487,13 @@ export function EuropeMap() {
                         {formatMarketCap(hovered.marketCap)}
                       </span>
                     </>
+                  ) : metric === "medianAge" ? (
+                    <>
+                      Native median age{" "}
+                      <span style={{ color: COLORS.medianAge }}>
+                        {formatMedianAge(hovered.medianAge)} yrs
+                      </span>
+                    </>
                   ) : (
                     <>
                       Native / white{" "}
@@ -509,6 +542,11 @@ export function EuropeMap() {
                   value={formatMarketCap(detail.marketCap)}
                   color={COLORS.marketCap}
                 />
+                <Stat
+                  label="Native median age"
+                  value={`${formatMedianAge(detail.medianAge)} yrs`}
+                  color={COLORS.medianAge}
+                />
               </dl>
             </div>
           ) : (
@@ -531,6 +569,11 @@ export function EuropeMap() {
             <>
               <LegendSwatch color="rgba(45,184,138,0.3)" label="Smaller market" />
               <LegendSwatch color="rgba(45,184,138,1)" label="Larger market" />
+            </>
+          ) : metric === "medianAge" ? (
+            <>
+              <LegendSwatch color="rgba(88,160,200,0.3)" label="Older native pop." />
+              <LegendSwatch color="rgba(88,160,200,1)" label="Younger native pop." />
             </>
           ) : (
             <>

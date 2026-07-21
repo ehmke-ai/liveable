@@ -3,6 +3,7 @@ import { DemographicsBarChart } from "@/components/demographics-bar-chart"
 import { DemographicsDataTable } from "@/components/demographics-data-table"
 import { EuropeMap } from "@/components/europe-map"
 import { MarketCapChart } from "@/components/market-cap-chart"
+import { MedianAgeChart } from "@/components/median-age-chart"
 import { NativePopulationChart } from "@/components/native-population-chart"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -25,13 +26,18 @@ import {
   COLORS,
   demographicsData,
   formatMarketCap,
+  formatMedianAge,
   mapDemographicsData,
   marketCapIntensity,
   maxAntiImmig,
   maxMarketCap,
+  maxMedianAge,
   maxNative,
+  medianAgeYouthIntensity,
+  minMedianAge,
   rankedByAntiImmig,
   rankedByMarketCap,
+  rankedByMedianAge,
   rankedByNative,
 } from "@/lib/demographics"
 
@@ -322,6 +328,82 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
+      <header className="mt-12 mb-7">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          Native / white age ranking
+        </h1>
+        <p className="max-w-xl text-base text-muted-foreground leading-relaxed">
+          Countries ranked by median age of the native / white population. Lower = younger
+          native age structure — younger ranks higher.
+        </p>
+      </header>
+
+      <Card className="border-border bg-card shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="sr-only">Native / white median age ranking chart</CardTitle>
+          <CardDescription className="sr-only">
+            Horizontal bar chart ranking countries by native / white median age, youngest first
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MedianAgeChart />
+          <Separator className="my-4" />
+          <Swatch
+            color={COLORS.medianAge}
+            label="Native / white median age (years) — younger ranks higher"
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-7 border-border bg-card shadow-none">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Rank</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead className="text-right">Native median age</TableHead>
+                <TableHead className="min-w-[8rem]">Youth intensity</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rankedByMedianAge.map((row, i) => (
+                <TableRow key={row.country}>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className="min-w-7 justify-center rounded-full bg-[rgba(88,160,200,0.18)] text-[#9ecce8] hover:bg-[rgba(88,160,200,0.18)]"
+                    >
+                      {i + 1}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{row.country}</TableCell>
+                  <TableCell
+                    className="text-right font-medium tabular-nums"
+                    style={{ color: COLORS.medianAge }}
+                  >
+                    {formatMedianAge(row.medianAge)} yrs
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-[#1a1a1a]"
+                      aria-hidden
+                    >
+                      <span
+                        className="block h-full rounded-full bg-[#58a0c8]"
+                        style={{
+                          width: `${medianAgeYouthIntensity(row.medianAge, minMedianAge, maxMedianAge) * 100}%`,
+                        }}
+                      />
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       <footer className="mt-6 max-w-3xl text-sm leading-relaxed text-muted-foreground">
         <strong className="font-semibold text-foreground">Notes:</strong> Most countries do
         not publish official “race” statistics. “Native / white” uses approximate ethnic
@@ -339,7 +421,11 @@ export default function HomePage() {
         share wanting immigration decreased for the United States). Market capitalization is
         total listed domestic equity (approx. 2026 figures from compiled World Bank / exchange
         statistics); definitions of “domestic” listings and reporting years differ by country.
-        Map coloring for market cap is log-scaled within European countries only. Values are
+        Map coloring for market cap is log-scaled within European countries only. Native /
+        white median age uses Eurostat “born in reporting country” figures for 1 January 2025
+        for European countries (a proxy where race statistics are not published); the United
+        States uses Census Bureau non-Hispanic White alone median age (July 2024). Map coloring
+        for median age is inverted within European countries (younger = stronger). Values are
         rounded for comparison; years and definitions differ by country.
       </footer>
     </main>
