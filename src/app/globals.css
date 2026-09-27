@@ -48,8 +48,44 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root,
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f4f4f5;
+  --muted-foreground: #6b7280;
+  --accent: #f4f4f5;
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #a3a3a3;
+  --chart-1: #1f2937;
+  --chart-2: #dc2626;
+  --chart-3: #2563eb;
+  --chart-4: #b45309;
+  --chart-5: #c2410c;
+  --radius: 0.75rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #a3a3a3;
+}
+
 .dark {
+  color-scheme: dark;
   --background: #000000;
   --foreground: #e8edf5;
   --card: #0a0a0a;
@@ -90,7 +126,6 @@
   }
   html {
     @apply font-sans;
-    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;

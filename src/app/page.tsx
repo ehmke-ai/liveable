@@ -1,12 +1,13 @@
 import { AntiImmigrationChart } from "@/components/anti-immigration-chart"
 import { DemographicsBarChart } from "@/components/demographics-bar-chart"
 import { DemographicsDataTable } from "@/components/demographics-data-table"
-// import { EuropeMap } from "@/components/europe-map"
+import { EuropeMap } from "@/components/europe-map"
 import { MarketCapChart } from "@/components/market-cap-chart"
 import { MedianAgeChart } from "@/components/median-age-chart"
 import { NativePopulationChart } from "@/components/native-population-chart"
 import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -29,7 +30,7 @@ import {
   demographicsData,
   formatMarketCap,
   formatMedianAge,
-  // mapDemographicsData,
+  mapDemographicsData,
   marketCapIntensity,
   maxAntiImmig,
   maxMarketCap,
@@ -58,25 +59,28 @@ function Swatch({ color, label }: { color: string; label: string }) {
 
 export default function HomePage() {
   const countryCount = demographicsData.length
-  // const mapCountryCount = mapDemographicsData.length
+  const mapCountryCount = mapDemographicsData.length
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
-      {/* <header className="mb-7">
-        <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
-          Europe demographics map
-        </h1>
-        <p className="max-w-xl text-base text-muted-foreground leading-relaxed">
-          Interactive choropleth for {mapCountryCount} European countries — switch metrics,
-          hover for a preview, and click a country for the full breakdown.
-        </p>
+      <header className="mb-7 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            Europe demographics map
+          </h1>
+          <p className="max-w-xl text-base text-muted-foreground leading-relaxed">
+            Interactive choropleth for {mapCountryCount} European countries — switch metrics,
+            hover for a preview, and click a country for the full breakdown.
+          </p>
+        </div>
+        <ThemeToggle />
       </header>
 
       <Card className="border-border bg-card shadow-none">
         <CardContent className="pt-6">
           <EuropeMap />
         </CardContent>
-      </Card> */}
+      </Card>
 
       <header className="mt-12 mb-7">
         <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -148,7 +152,7 @@ export default function HomePage() {
                   <TableCell>
                     <Badge
                       variant="secondary"
-                      className="min-w-7 justify-center rounded-full bg-[rgba(255,255,255,0.18)] text-[#e8edf5] hover:bg-[rgba(255,255,255,0.18)]"
+                      className="min-w-7 justify-center rounded-full bg-foreground/15 text-foreground hover:bg-foreground/15"
                     >
                       {i + 1}
                     </Badge>
@@ -162,12 +166,15 @@ export default function HomePage() {
                   </TableCell>
                   <TableCell>
                     <span
-                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-[#1a1a1a]"
+                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-muted"
                       aria-hidden
                     >
                       <span
-                        className="block h-full rounded-full bg-white"
-                        style={{ width: `${(row.native / maxNative) * 100}%` }}
+                        className="block h-full rounded-full"
+                        style={{
+                          width: `${(row.native / maxNative) * 100}%`,
+                          backgroundColor: COLORS.native,
+                        }}
                       />
                     </span>
                   </TableCell>
@@ -292,7 +299,7 @@ export default function HomePage() {
                   </TableCell>
                   <TableCell>
                     <span
-                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-[#1a1a1a]"
+                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-muted"
                       aria-hidden
                     >
                       <span
@@ -367,7 +374,7 @@ export default function HomePage() {
                   </TableCell>
                   <TableCell>
                     <span
-                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-[#1a1a1a]"
+                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-muted"
                       aria-hidden
                     >
                       <span
@@ -443,7 +450,7 @@ export default function HomePage() {
                   </TableCell>
                   <TableCell>
                     <span
-                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-[#1a1a1a]"
+                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-muted"
                       aria-hidden
                     >
                       <span

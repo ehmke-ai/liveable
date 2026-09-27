@@ -216,7 +216,11 @@ function fillFor(
   hovered: boolean,
   selected: boolean
 ) {
-  if (!data) return hovered ? "#2a2a2a" : "#141414"
+  if (!data) {
+    return hovered
+      ? "color-mix(in oklch, var(--foreground) 10%, var(--border))"
+      : "var(--border)"
+  }
 
   if (metric === "antiImmig") {
     const t = data.antiImmig / maxAntiImmig
@@ -247,10 +251,14 @@ function fillFor(
   }
 
   const t = data.native / 100
-  const v = Math.round(40 + t * 215)
-  if (selected) return `rgb(${Math.min(255, v + 25)},${Math.min(255, v + 25)},${Math.min(255, v + 25)})`
-  if (hovered) return `rgb(${Math.min(255, v + 15)},${Math.min(255, v + 15)},${Math.min(255, v + 15)})`
-  return `rgb(${v},${v},${v})`
+  const pct = Math.round(15 + t * 85)
+  if (selected) {
+    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 15)}%, var(--muted))`
+  }
+  if (hovered) {
+    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 8)}%, var(--muted))`
+  }
+  return `color-mix(in oklch, var(--foreground) ${pct}%, var(--muted))`
 }
 
 function metricLabel(data: CountryDemographics, metric: MapMetric): string {
@@ -265,10 +273,10 @@ function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): stri
     if (metric === "antiImmig") return "#f0b27a"
     if (metric === "marketCap") return "#7eecc0"
     if (metric === "medianAge") return "#9ecce8"
-    return "#ffffff"
+    return "var(--foreground)"
   }
-  if (hovered) return "#9aa6ba"
-  return "#2a2a2a"
+  if (hovered) return "color-mix(in oklch, var(--foreground) 55%, var(--background))"
+  return "color-mix(in oklch, var(--foreground) 35%, var(--background))"
 }
 
 export function EuropeMap() {
@@ -402,7 +410,7 @@ export function EuropeMap() {
         </p>
       </div>
 
-      <div className="relative overflow-hidden rounded-lg border border-border bg-[#050505]">
+      <div className="relative overflow-hidden rounded-lg border border-border bg-muted">
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
             Loading map…
@@ -414,7 +422,7 @@ export function EuropeMap() {
           role="img"
           aria-label="Interactive map of Europe showing demographic metrics"
         >
-          <rect width={WIDTH} height={HEIGHT} fill="#050505" />
+          <rect width={WIDTH} height={HEIGHT} fill="var(--muted)" />
           {orderedFeatures.map((f) => {
             const id = isoKey(f.id)
             const data = demographicsByIso[id]
@@ -577,11 +585,14 @@ export function EuropeMap() {
             </>
           ) : (
             <>
-              <LegendSwatch color="rgb(80,80,80)" label="Lower native share" />
-              <LegendSwatch color="rgb(255,255,255)" label="Higher native share" />
+              <LegendSwatch
+                color="color-mix(in oklch, var(--foreground) 15%, var(--muted))"
+                label="Lower native share"
+              />
+              <LegendSwatch color="var(--foreground)" label="Higher native share" />
             </>
           )}
-          <LegendSwatch color="#141414" label="No data" />
+          <LegendSwatch color="var(--border)" label="No data" />
         </div>
       </div>
     </div>

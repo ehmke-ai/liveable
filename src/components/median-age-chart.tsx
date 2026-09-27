@@ -48,7 +48,7 @@ export function MedianAgeChart() {
         layout="vertical"
         margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
       >
-        <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
+        <CartesianGrid horizontal={false} stroke="var(--border)" />
         <XAxis
           type="number"
           domain={[35, 52]}
@@ -56,7 +56,7 @@ export function MedianAgeChart() {
           axisLine={false}
           tickMargin={8}
           tickFormatter={(v) => `${v}`}
-          tick={{ fill: "#9aa6ba", fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
         />
         <YAxis
           type="category"
@@ -64,7 +64,7 @@ export function MedianAgeChart() {
           width={120}
           tickLine={false}
           axisLine={false}
-          tick={{ fill: "#e8edf5", fontSize: 13 }}
+          tick={{ fill: "var(--foreground)", fontSize: 13 }}
         />
         <ChartTooltip
           content={

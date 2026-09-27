@@ -71,13 +71,13 @@ export function NativeShareTrendChart() {
           data={chartData}
           margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
         >
-          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+          <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="year"
             tickLine={false}
             axisLine={false}
             tickMargin={8}
-            tick={{ fill: "#9aa6ba", fontSize: 12 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           />
           <YAxis
             domain={[yMin, 100]}
@@ -85,7 +85,7 @@ export function NativeShareTrendChart() {
             axisLine={false}
             tickMargin={8}
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "#9aa6ba", fontSize: 12 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
             width={44}
           />
           <ChartTooltip

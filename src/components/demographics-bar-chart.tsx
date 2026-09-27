@@ -34,7 +34,7 @@ export function DemographicsBarChart() {
         data={demographicsData}
         margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
       >
-        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+        <CartesianGrid vertical={false} stroke="var(--border)" />
         <XAxis
           dataKey="country"
           tickLine={false}
@@ -44,7 +44,7 @@ export function DemographicsBarChart() {
           angle={-28}
           textAnchor="end"
           height={70}
-          tick={{ fill: "#e8edf5", fontSize: 12 }}
+          tick={{ fill: "var(--foreground)", fontSize: 12 }}
         />
         <YAxis
           domain={[0, 100]}
@@ -52,7 +52,7 @@ export function DemographicsBarChart() {
           axisLine={false}
           tickMargin={8}
           tickFormatter={(v) => `${v}%`}
-          tick={{ fill: "#9aa6ba", fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
         />
         <ChartTooltip
           content={

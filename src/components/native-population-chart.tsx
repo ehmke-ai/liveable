@@ -42,7 +42,7 @@ export function NativePopulationChart() {
         layout="vertical"
         margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
       >
-        <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
+        <CartesianGrid horizontal={false} stroke="var(--border)" />
         <XAxis
           type="number"
           domain={[0, 100]}
@@ -50,7 +50,7 @@ export function NativePopulationChart() {
           axisLine={false}
           tickMargin={8}
           tickFormatter={(v) => `${v}%`}
-          tick={{ fill: "#9aa6ba", fontSize: 12 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
         />
         <YAxis
           type="category"
@@ -58,7 +58,7 @@ export function NativePopulationChart() {
           width={120}
           tickLine={false}
           axisLine={false}
-          tick={{ fill: "#e8edf5", fontSize: 13 }}
+          tick={{ fill: "var(--foreground)", fontSize: 13 }}
         />
         <ChartTooltip
           content={
@@ -84,12 +84,17 @@ export function NativePopulationChart() {
           }
         />
         <Bar dataKey="native" radius={[0, 6, 6, 0]} maxBarSize={28}>
-          {chartData.map((entry) => (
-            <Cell
-              key={entry.country}
-              fill={`rgba(255, 255, 255, ${0.45 + (entry.native / maxNative) * 0.55})`}
-            />
-          ))}
+          {chartData.map((entry) => {
+            const intensity = Math.round(
+              (0.45 + (entry.native / maxNative) * 0.55) * 100
+            )
+            return (
+              <Cell
+                key={entry.country}
+                fill={`color-mix(in oklch, var(--chart-1) ${intensity}%, transparent)`}
+              />
+            )
+          })}
         </Bar>
       </BarChart>
     </ChartContainer>

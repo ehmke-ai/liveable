@@ -407,7 +407,7 @@ export function getPoliticalLeanHistory(country: string): PoliticalLeanPoint[] {
 }
 
 export const COLORS = {
-  native: "#ffffff",
+  native: "var(--chart-1)",
   catholic: "#e23d3d",
   protestant: "#3d7ee2",
   orthodox: "#c9a227",
