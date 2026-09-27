@@ -30,7 +30,7 @@ export const topics: Topic[] = [
   },
   {
     slug: "map",
-    label: "Europe map",
+    label: "The Europe Map",
     description: "Interactive choropleth — switch metrics and click a country for details.",
     icon: MapIcon,
   },

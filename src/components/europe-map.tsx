@@ -286,7 +286,7 @@ const SIDEBAR_COUNTRIES = ["Switzerland", "Austria", "Netherlands", "Denmark", "
 
 export function EuropeMap() {
   const [features, setFeatures] = useState<CountryFeature[]>([])
-  const [metric, setMetric] = useState<MapMetric>("antiImmig")
+  const [metric, setMetric] = useState<MapMetric>("native")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
@@ -380,18 +380,18 @@ export function EuropeMap() {
           <Button
             type="button"
             size="sm"
-            variant={metric === "antiImmig" ? "default" : "secondary"}
-            onClick={() => setMetric("antiImmig")}
-          >
-            Anti-immigration
-          </Button>
-          <Button
-            type="button"
-            size="sm"
             variant={metric === "native" ? "default" : "secondary"}
             onClick={() => setMetric("native")}
           >
             Native / European
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={metric === "antiImmig" ? "default" : "secondary"}
+            onClick={() => setMetric("antiImmig")}
+          >
+            Anti-immigration
           </Button>
           <Button
             type="button"

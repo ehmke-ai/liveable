@@ -475,6 +475,7 @@ export const COLORS = {
   protestant: "#3d7ee2",
   orthodox: "#c9a227",
   anti: "#d9782d",
+  enforcement: "#c2415b",
   marketCap: "#2db88a",
   medianAge: "#58a0c8",
   leftWing: "#1d4ed8",

@@ -10,7 +10,7 @@ export const metadata: Metadata = topicMetadata("map")
 export default function MapPage() {
   return (
     <TopicPage
-      title="Europe demographics map"
+      title="The Europe Map"
       description={
         <>
           Interactive choropleth for {mapDemographicsData.length} European countries — switch

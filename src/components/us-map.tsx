@@ -1,13 +1,31 @@
 "use client"
 
 import { geoPath, type GeoPermissibleObjects } from "d3-geo"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import { feature } from "topojson-client"
 import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson"
 import type { GeometryCollection, Topology } from "topojson-specification"
 
-import { stateByAbbr } from "@/lib/states"
+import { Button } from "@/components/ui/button"
+import { COLORS } from "@/lib/demographics"
+import {
+  ENFORCEMENT_TIER_LABELS,
+  enforcementIntensity,
+  formatGdp,
+  gdpIntensity,
+  maxStateAntiImmig,
+  maxStateNative,
+  minStateAntiImmig,
+  minStateNative,
+  rangeIntensity,
+  stateByAbbr,
+  stateMapByAbbr,
+  stateMapData,
+  type StateMapMetrics,
+} from "@/lib/states"
+
+type MapMetric = "antiImmig" | "enforcement" | "native" | "gdp"
 
 type StateFeature = Feature<Geometry, { name: string }> & { id?: string | number }
 
@@ -26,6 +44,10 @@ const FIPS_TO_ABBR: Record<string, string> = {
   "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA",
   "54": "WV", "55": "WI", "56": "WY",
 }
+
+const ABBR_TO_FIPS: Record<string, string> = Object.fromEntries(
+  Object.entries(FIPS_TO_ABBR).map(([fips, abbr]) => [abbr, fips])
+)
 
 /** States too small to hold an inline label — listed in a sidebar instead, top to bottom like Kalshi's. */
 const SIDEBAR_ABBRS = ["VT", "NH", "MA", "RI", "CT", "NJ", "DE", "MD", "DC"]
@@ -66,10 +88,81 @@ function labelCentroid(
   return Number.isFinite(c[0]) && Number.isFinite(c[1]) ? c : null
 }
 
+const NO_DATA_FILL = "var(--border)"
+const NO_DATA_HOVER_FILL = "color-mix(in oklch, var(--foreground) 10%, var(--border))"
+
+function fillFor(
+  data: StateMapMetrics | undefined,
+  metric: MapMetric,
+  hovered: boolean,
+  selected: boolean
+) {
+  if (!data || (metric === "antiImmig" && data.antiImmig == null)) {
+    return hovered ? NO_DATA_HOVER_FILL : NO_DATA_FILL
+  }
+
+  if (metric === "antiImmig") {
+    const t = rangeIntensity(data.antiImmig ?? 0, minStateAntiImmig, maxStateAntiImmig)
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(217, 120, 45, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(240, 178, 122, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(217, 120, 45, ${alpha})`
+  }
+
+  if (metric === "enforcement") {
+    const t = enforcementIntensity(data.enforcementScore)
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(194, 65, 91, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(226, 130, 150, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(194, 65, 91, ${alpha})`
+  }
+
+  if (metric === "gdp") {
+    const t = gdpIntensity(data.gdp)
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(45, 184, 138, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(110, 220, 180, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(45, 184, 138, ${alpha})`
+  }
+
+  const t = rangeIntensity(data.native, minStateNative, maxStateNative)
+  const pct = Math.round(15 + t * 85)
+  if (selected) {
+    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 15)}%, var(--muted))`
+  }
+  if (hovered) {
+    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 8)}%, var(--muted))`
+  }
+  return `color-mix(in oklch, var(--foreground) ${pct}%, var(--muted))`
+}
+
+function metricLabel(data: StateMapMetrics, metric: MapMetric): string {
+  if (metric === "antiImmig") return data.antiImmig == null ? "no data" : `${data.antiImmig}%`
+  if (metric === "enforcement") return enforcementLabel(data)
+  if (metric === "gdp") return formatGdp(data.gdp)
+  return `${data.native}%`
+}
+
+function enforcementLabel(data: StateMapMetrics): string {
+  return `${ENFORCEMENT_TIER_LABELS[data.enforcementTier]} (${data.enforcementScore.toFixed(1)})`
+}
+
+function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): string {
+  if (selected) {
+    if (metric === "antiImmig") return "#f0b27a"
+    if (metric === "enforcement") return "#e8899c"
+    if (metric === "gdp") return "#7eecc0"
+    return "var(--foreground)"
+  }
+  if (hovered) return "color-mix(in oklch, var(--foreground) 55%, var(--background))"
+  return "var(--background)"
+}
+
 export function UsMap() {
-  const router = useRouter()
   const [features, setFeatures] = useState<StateFeature[]>([])
+  const [metric, setMetric] = useState<MapMetric>("native")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -109,52 +202,93 @@ export function UsMap() {
   // Coordinates are pre-projected (Albers USA), so no projection is applied here.
   const path = useMemo(() => geoPath(null), [])
 
-  const hoveredName = hoveredId
-    ? features.find((f) => isoKey(f.id) === hoveredId)?.properties.name
-    : undefined
-  const hoveredAbbr = hoveredId ? FIPS_TO_ABBR[hoveredId] : undefined
+  // Draw selected/hovered states last so their strokes sit on top
+  const orderedFeatures = useMemo(() => {
+    if (!hoveredId && !selectedId) return features
+    return [...features].sort((a, b) => {
+      const aId = isoKey(a.id)
+      const bId = isoKey(b.id)
+      const aBoost = (aId === selectedId ? 2 : 0) + (aId === hoveredId ? 1 : 0)
+      const bBoost = (bId === selectedId ? 2 : 0) + (bId === hoveredId ? 1 : 0)
+      return aBoost - bBoost
+    })
+  }, [features, hoveredId, selectedId])
+
+  const hovered = hoveredId ? stateMapByAbbr[FIPS_TO_ABBR[hoveredId]] : undefined
+  const selected = selectedId ? stateMapByAbbr[FIPS_TO_ABBR[selectedId]] : undefined
+  const detail = selected ?? hovered
+  const detailPage = detail ? stateByAbbr[detail.abbr] : undefined
 
   return (
-    <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-      <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
-            Loading map…
-          </div>
-        )}
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="h-auto w-full touch-pan-y"
-          role="img"
-          aria-label="Interactive map of the United States"
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={metric === "native" ? "default" : "secondary"}
+          onClick={() => setMetric("native")}
         >
-          {features.map((f) => {
-            const id = isoKey(f.id)
-            const abbr = FIPS_TO_ABBR[id]
-            const isHovered = hoveredId === id
-            const statePage = abbr ? stateByAbbr[abbr] : undefined
-            const d = path(f as GeoPermissibleObjects)
-            if (!d) return null
+          Native / European
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={metric === "antiImmig" ? "default" : "secondary"}
+          onClick={() => setMetric("antiImmig")}
+        >
+          Anti-immigration sentiment
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={metric === "enforcement" ? "default" : "secondary"}
+          onClick={() => setMetric("enforcement")}
+        >
+          Enforcement laws &amp; ICE
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={metric === "gdp" ? "default" : "secondary"}
+          onClick={() => setMetric("gdp")}
+        >
+          GDP
+        </Button>
+      </div>
 
-            const showLabel = abbr && !UNLABELED_ABBRS.has(abbr)
-            const centroid = showLabel ? labelCentroid(path, f) : null
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
+              Loading map…
+            </div>
+          )}
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="h-auto w-full touch-pan-y"
+            role="img"
+            aria-label="Interactive map of the United States showing demographic metrics"
+          >
+            {orderedFeatures.map((f) => {
+              const id = isoKey(f.id)
+              const abbr = FIPS_TO_ABBR[id]
+              const data = abbr ? stateMapByAbbr[abbr] : undefined
+              const isHovered = hoveredId === id
+              const isSelected = selectedId === id
+              const d = path(f as GeoPermissibleObjects)
+              if (!d) return null
 
-            return (
-              <g key={id || f.properties.name}>
+              return (
                 <path
+                  key={id || f.properties.name}
                   d={d}
-                  fill={
-                    isHovered
-                      ? "color-mix(in oklch, var(--foreground) 22%, var(--muted))"
-                      : "color-mix(in oklch, var(--foreground) 10%, var(--muted))"
-                  }
-                  stroke="var(--background)"
-                  strokeWidth={isHovered ? 1.5 : 1}
+                  fill={fillFor(data, metric, isHovered, isSelected)}
+                  stroke={strokeFor(metric, isSelected, isHovered)}
+                  strokeWidth={isSelected ? 1.75 : isHovered ? 1.5 : 1}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
-                  className={`${statePage ? "cursor-pointer" : "cursor-default"} transition-[fill,stroke-width] duration-150`}
-                  onClick={statePage ? () => router.push(`/state/${statePage.slug}`) : undefined}
+                  className={`${data ? "cursor-pointer" : "cursor-default"} transition-[fill,stroke-width] duration-150`}
                   onMouseEnter={(e) => {
                     setHoveredId(id)
                     updatePointer(e)
@@ -164,70 +298,246 @@ export function UsMap() {
                     setHoveredId(null)
                     setPointer(null)
                   }}
+                  onClick={() => {
+                    if (!data) return
+                    setSelectedId((prev) => (prev === id ? null : id))
+                  }}
                 >
-                  <title>{f.properties.name}</title>
+                  <title>
+                    {data
+                      ? `${data.state}: ${metricLabel(data, metric)}`
+                      : `${f.properties.name}: no data`}
+                  </title>
                 </path>
-                {centroid && (
-                  <text
-                    x={centroid[0]}
-                    y={centroid[1]}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="pointer-events-none select-none font-bold uppercase tracking-wide"
-                    style={{ fontSize: 13, fill: "var(--foreground)" }}
-                  >
-                    {abbr}
-                  </text>
-                )}
-              </g>
+              )
+            })}
+
+            {/* Labels in a separate pass so hovered/selected states drawn later don't cover them */}
+            {features.map((f) => {
+              const abbr = FIPS_TO_ABBR[isoKey(f.id)]
+              if (!abbr || UNLABELED_ABBRS.has(abbr)) return null
+              const centroid = labelCentroid(path, f)
+              if (!centroid) return null
+              return (
+                <text
+                  key={abbr}
+                  x={centroid[0]}
+                  y={centroid[1]}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  paintOrder="stroke"
+                  stroke="var(--background)"
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                  className="pointer-events-none select-none font-bold uppercase tracking-wide"
+                  style={{ fontSize: 13, fill: "var(--foreground)" }}
+                >
+                  {abbr}
+                </text>
+              )
+            })}
+          </svg>
+
+          {hoveredId && pointer && (
+            <div
+              className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
+              style={{
+                left: `min(${pointer.x}%, calc(100% - 10rem))`,
+                top: `max(${pointer.y - 2}%, 0.5rem)`,
+                transform: "translateY(-100%)",
+              }}
+            >
+              {hovered ? (
+                <>
+                  <div className="font-medium text-foreground">{hovered.state}</div>
+                  <div className="tabular-nums text-muted-foreground">
+                    {metric === "antiImmig" ? (
+                      hovered.antiImmig == null ? (
+                        "No survey data"
+                      ) : (
+                        <>
+                          Opposition{" "}
+                          <span style={{ color: COLORS.anti }}>{hovered.antiImmig}%</span>
+                        </>
+                      )
+                    ) : metric === "enforcement" ? (
+                      <>
+                        <span style={{ color: COLORS.enforcement }}>
+                          {ENFORCEMENT_TIER_LABELS[hovered.enforcementTier]}
+                        </span>{" "}
+                        · ILRC {hovered.enforcementScore.toFixed(1)}
+                      </>
+                    ) : metric === "gdp" ? (
+                      <>
+                        GDP{" "}
+                        <span style={{ color: COLORS.marketCap }}>{formatGdp(hovered.gdp)}</span>
+                      </>
+                    ) : (
+                      <>
+                        Native / European{" "}
+                        <span style={{ color: COLORS.native }}>{hovered.native}%</span>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="font-medium text-foreground">No data</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-border sm:w-32">
+          {SIDEBAR_ABBRS.map((abbr) => {
+            const id = ABBR_TO_FIPS[abbr]
+            const data = stateMapByAbbr[abbr]
+            const isHovered = hoveredId === id
+            const isSelected = selectedId === id
+            return (
+              <button
+                key={abbr}
+                type="button"
+                title={data ? `${data.state}: ${metricLabel(data, metric)}` : abbr}
+                className="block w-full cursor-pointer border-b border-border/60 px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wide text-foreground transition-colors last:border-b-0"
+                style={{ background: fillFor(data, metric, isHovered, isSelected) }}
+                onMouseEnter={() => setHoveredId(id)}
+                onMouseLeave={() => setHoveredId(null)}
+                onClick={() => setSelectedId((prev) => (prev === id ? null : id))}
+              >
+                <span
+                  className="rounded-[3px] px-1"
+                  style={{ background: "color-mix(in oklch, var(--background) 70%, transparent)" }}
+                >
+                  {abbr}
+                </span>
+              </button>
             )
           })}
-        </svg>
-
-        {hoveredId && pointer && hoveredName && (
-          <div
-            className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
-            style={{
-              left: `min(${pointer.x}%, calc(100% - 10rem))`,
-              top: `max(${pointer.y - 2}%, 0.5rem)`,
-              transform: "translateY(-100%)",
-            }}
-          >
-            <div className="font-medium text-foreground">{hoveredName}</div>
-            {hoveredAbbr && stateByAbbr[hoveredAbbr] && (
-              <div className="text-xs text-muted-foreground">Click for details</div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border sm:w-32">
-        {SIDEBAR_ABBRS.map((abbr) => {
-          const id = Object.entries(FIPS_TO_ABBR).find(([, a]) => a === abbr)?.[0]
-          const isHovered = !!id && hoveredId === id
-          return (
-            <div
-              key={abbr}
-              className="cursor-default border-b border-border/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-foreground transition-colors last:border-b-0"
-              style={{
-                background: isHovered
-                  ? "color-mix(in oklch, var(--foreground) 22%, var(--muted))"
-                  : "color-mix(in oklch, var(--foreground) 10%, var(--muted))",
-              }}
-              onMouseEnter={() => id && setHoveredId(id)}
-              onMouseLeave={() => setHoveredId(null)}
-            >
-              {abbr}
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
+        <div className="rounded-lg border border-border bg-card/40 px-4 py-3 text-sm">
+          {detail ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-base font-semibold text-foreground">
+                  {detailPage ? (
+                    <Link href={`/state/${detailPage.slug}`} className="hover:underline">
+                      {detail.state}
+                    </Link>
+                  ) : (
+                    detail.state
+                  )}
+                </h3>
+                <div className="flex items-center gap-3">
+                  {detailPage && (
+                    <Link
+                      href={`/state/${detailPage.slug}`}
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      Full profile →
+                    </Link>
+                  )}
+                  {selected && (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                      onClick={() => setSelectedId(null)}
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                </div>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 tabular-nums sm:grid-cols-4">
+                <Stat
+                  label="Anti-immigration sentiment"
+                  value={detail.antiImmig == null ? "—" : `${detail.antiImmig}%`}
+                  color={COLORS.anti}
+                />
+                <Stat
+                  label="Enforcement laws & ICE"
+                  value={enforcementLabel(detail)}
+                  color={COLORS.enforcement}
+                />
+                <Stat label="Native / European" value={`${detail.native}%`} color={COLORS.native} />
+                <Stat label="GDP" value={formatGdp(detail.gdp)} color={COLORS.marketCap} />
+              </dl>
             </div>
-          )
-        })}
+          ) : (
+            <p className="text-muted-foreground">
+              Hover or select one of {stateMapData.length} states (including DC) to inspect its
+              figures.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:min-w-[10rem]">
+          <span className="font-medium text-foreground">Legend</span>
+          {metric === "antiImmig" ? (
+            <>
+              <LegendSwatch color="rgba(217,120,45,0.3)" label={`Lower opposition (${minStateAntiImmig}%)`} />
+              <LegendSwatch color="rgba(217,120,45,1)" label={`Higher opposition (${maxStateAntiImmig}%)`} />
+            </>
+          ) : metric === "enforcement" ? (
+            <>
+              <LegendSwatch color="rgba(194,65,91,0.3)" label="Sanctuary protections" />
+              <LegendSwatch color="rgba(194,65,91,1)" label="Heavy ICE cooperation" />
+            </>
+          ) : metric === "gdp" ? (
+            <>
+              <LegendSwatch color="rgba(45,184,138,0.3)" label="Smaller economy" />
+              <LegendSwatch color="rgba(45,184,138,1)" label="Larger economy" />
+            </>
+          ) : (
+            <>
+              <LegendSwatch
+                color="color-mix(in oklch, var(--foreground) 15%, var(--muted))"
+                label={`Lower native share (${minStateNative}%)`}
+              />
+              <LegendSwatch color="var(--foreground)" label={`Higher native share (${maxStateNative}%)`} />
+            </>
+          )}
+          {metric === "antiImmig" && <LegendSwatch color={NO_DATA_FILL} label="No data" />}
+        </div>
       </div>
 
-      {hoveredAbbr && (
-        <p className="col-span-full text-xs text-muted-foreground sm:hidden">
-          {hoveredName}
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">
+        Anti-immigration sentiment: share saying newcomers from other countries threaten
+        traditional American customs and values (PRRI 2015 American Values Atlas; DC not
+        surveyed). Enforcement laws &amp; ICE: state legislation on ICE detainers, 287(g),
+        information sharing, anti-sanctuary mandates, and state immigration crimes, averaged
+        on ILRC&apos;s 1–5 scale (1 = most enforcement, 5 = most protective; ILRC State Map on
+        Immigration Enforcement, July 2026).
+        Native / European: non-Hispanic White minus Arab ancestry (Census Vintage 2025, ACS
+        2024). GDP: nominal 2025 state GDP (BEA), log-scaled. Colors are scaled to the range
+        across states.
+      </p>
     </div>
+  )
+}
+
+function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-medium" style={{ color }}>
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+function LegendSwatch({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <i
+        className="inline-block size-3 rounded-[3px] border border-border"
+        style={{ background: color }}
+        aria-hidden
+      />
+      {label}
+    </span>
   )
 }
