@@ -1,0 +1,222 @@
+import { notFound } from "next/navigation"
+import type { Metadata } from "next"
+
+import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
+import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
+import { UsMap } from "@/components/us-map"
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import {
+  COLORS,
+  demographicsData,
+  formatMarketCap,
+  formatMedianAge,
+  getCountryBySlug,
+  getCountryRankings,
+  slugify,
+} from "@/lib/demographics"
+
+export function generateStaticParams() {
+  return demographicsData.map((d) => ({ slug: slugify(d.country) }))
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const country = getCountryBySlug(slug)
+  if (!country) return { title: "Country not found" }
+  return {
+    title: `${country.country} — Demographics`,
+    description: `Demographic breakdown, rankings, and historical trends for ${country.country}.`,
+  }
+}
+
+function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div>
+      <dt className="eyebrow">{label}</dt>
+      <dd className="mt-1 text-[17px] font-semibold tabular-nums" style={{ color }}>
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+export default async function CountryPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const country = getCountryBySlug(slug)
+  if (!country) notFound()
+
+  const rankings = getCountryRankings(country.country)
+  const isUnitedStates = country.country === "United States"
+
+  const snapshotCard = (
+    <Card className="border-border bg-card shadow-none">
+      <CardHeader className="pb-2">
+        <CardTitle>Snapshot</CardTitle>
+        <CardDescription>Current approximate figures</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+          <Stat label="Native / european" value={`${country.native}%`} color={COLORS.native} />
+          <Stat label="Catholic" value={`${country.catholic}%`} color={COLORS.catholic} />
+          <Stat label="Protestant" value={`${country.protestant}%`} color={COLORS.protestant} />
+          <Stat label="Orthodox" value={`${country.orthodox}%`} color={COLORS.orthodox} />
+          <Stat
+            label="Anti-immigration"
+            value={`${country.antiImmig}%`}
+            color={COLORS.anti}
+          />
+          <Stat
+            label="Market cap"
+            value={formatMarketCap(country.marketCap)}
+            color={COLORS.marketCap}
+          />
+          <Stat
+            label="Native median age"
+            value={`${formatMedianAge(country.medianAge)} yrs`}
+            color={COLORS.medianAge}
+          />
+        </dl>
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
+      <header className="mb-7">
+        <h1 className="page-title">
+          {country.country}
+        </h1>
+      </header>
+
+      {!isUnitedStates && snapshotCard}
+
+      {isUnitedStates && (
+        <>
+
+          <UsMap />
+
+          <header className="mt-12 mb-7">
+            <h2 className="section-title">Snapshot</h2>
+          </header>
+
+          {snapshotCard}
+        </>
+      )}
+
+      <header className="mt-12 mb-7">
+        <h2 className="section-title">Rankings</h2>
+        <p className="section-sub">
+          Where {country.country} lands among all {demographicsData.length} countries in the
+          data set.
+        </p>
+      </header>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {rankings.map((r) => (
+          <Card key={r.label} className="border-border bg-card shadow-none">
+            <CardContent className="flex items-center justify-between gap-4 pt-6">
+              <div>
+                <div className="eyebrow">{r.label}</div>
+                <div className="tabular-nums font-medium" style={{ color: r.color }}>
+                  {r.value}
+                </div>
+              </div>
+              <Badge
+                variant="secondary"
+                className="min-w-10 justify-center rounded-full bg-foreground/15 text-foreground hover:bg-foreground/15"
+              >
+                {r.rank} / {r.total}
+              </Badge>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <header className="mt-12 mb-7">
+        <h2 className="section-title">Native / european share over time</h2>
+        <p className="section-sub">
+          Approximate native / european population share from 1960 to 2025.
+        </p>
+      </header>
+
+      <Card className="border-border bg-card shadow-none">
+        <CardContent>
+          <NativeShareTrendChart country={country.country} hideSelector />
+          <Separator className="my-4" />
+          <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <i
+              className="inline-block size-3.5 rounded-[3px]"
+              style={{ background: COLORS.native }}
+              aria-hidden
+            />
+            Native / european population share
+          </span>
+        </CardContent>
+      </Card>
+
+      <header className="mt-12 mb-7">
+        <h2 className="section-title">Political leanings over time</h2>
+        <p className="section-sub">
+          Parliamentary vote share in four left–right bands from 1960 to 2025.
+        </p>
+      </header>
+
+      <Card className="border-border bg-card shadow-none">
+        <CardContent>
+          <PoliticalLeanTrendChart country={country.country} hideSelector />
+          <Separator className="my-4" />
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <i
+                className="inline-block size-3.5 rounded-[3px]"
+                style={{ background: COLORS.leftWing }}
+                aria-hidden
+              />
+              Left wing
+            </span>
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <i
+                className="inline-block size-3.5 rounded-[3px]"
+                style={{ background: COLORS.leftOfCenter }}
+                aria-hidden
+              />
+              Left of center
+            </span>
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <i
+                className="inline-block size-3.5 rounded-[3px]"
+                style={{ background: COLORS.rightOfCenter }}
+                aria-hidden
+              />
+              Right of center
+            </span>
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <i
+                className="inline-block size-3.5 rounded-[3px]"
+                style={{ background: COLORS.rightWing }}
+                aria-hidden
+              />
+              Right wing
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </main>
+  )
+}

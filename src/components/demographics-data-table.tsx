@@ -11,6 +11,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table"
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +27,7 @@ import {
   demographicsData,
   formatMarketCap,
   formatMedianAge,
+  slugify,
   type CountryDemographics,
 } from "@/lib/demographics"
 import { cn } from "@/lib/utils"
@@ -75,14 +77,19 @@ const columns: ColumnDef<CountryDemographics>[] = [
     header: "Country",
     enableSorting: false,
     cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("country")}</div>
+      <Link
+        href={`/country/${slugify(row.getValue("country"))}`}
+        className="font-medium hover:underline"
+      >
+        {row.getValue("country")}
+      </Link>
     ),
   },
   {
     accessorKey: "native",
     header: ({ column }) => (
       <div className="flex justify-end">
-        <SortableHeader column={column} title="Native / white" />
+        <SortableHeader column={column} title="Native / European" />
       </div>
     ),
     cell: ({ row }) => (

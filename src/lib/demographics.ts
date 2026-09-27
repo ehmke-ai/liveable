@@ -10,7 +10,7 @@ export type CountryDemographics = {
   /** Domestic listed equity market capitalization, billions of USD */
   marketCap: number
   /**
-   * Median age of the native / white population in years (lower = younger).
+   * Median age of the native / European population in years (lower = younger).
    * Europe: Eurostat native-born (born in reporting country).
    * United States: Census non-Hispanic White alone.
    */
@@ -52,6 +52,23 @@ export const demographicsByIso = Object.fromEntries(
   mapDemographicsData.map((d) => [String(Number(d.isoNumeric)), d])
 ) as Record<string, CountryDemographics>
 
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+export const countryBySlug: Record<string, CountryDemographics> = Object.fromEntries(
+  demographicsData.map((d) => [slugify(d.country), d])
+)
+
+export function getCountryBySlug(slug: string): CountryDemographics | undefined {
+  return countryBySlug[slug]
+}
+
 export const rankedByNative = [...demographicsData].sort(
   (a, b) => b.native - a.native
 )
@@ -73,7 +90,7 @@ export const maxMarketCap = Math.max(...rankedByMarketCap.map((d) => d.marketCap
 /** Max among countries shown on the Europe map (excludes USA) */
 export const maxMapMarketCap = Math.max(...mapDemographicsData.map((d) => d.marketCap))
 
-/** Youngest first — lower native / white median age ranks higher */
+/** Youngest first — lower native / European median age ranks higher */
 export const rankedByMedianAge = [...demographicsData].sort(
   (a, b) => a.medianAge - b.medianAge
 )
@@ -101,12 +118,12 @@ export function formatMedianAge(years: number): string {
 
 export type NativeSharePoint = {
   year: number
-  /** Approximate native / white population share (%) */
+  /** Approximate native / European population share (%) */
   native: number
 }
 
 /**
- * Approximate native / white population share over time.
+ * Approximate native / European population share over time.
  * Europe: ethnic European / autochthonous proxy (not identical to foreign-born).
  * United States: non-Hispanic White alone (Census).
  * Series end at the snapshot `native` values above.
@@ -248,7 +265,7 @@ export function marketCapIntensity(billions: number, maxBillions: number): numbe
   return Math.log10(billions) / Math.log10(maxBillions)
 }
 
-/** Youth intensity in [0, 1] — younger native / white median age scores higher */
+/** Youth intensity in [0, 1] — younger native / European median age scores higher */
 export function medianAgeYouthIntensity(
   medianAge: number,
   minAge: number,
@@ -404,6 +421,52 @@ export const DEFAULT_POLITICAL_LEAN_COUNTRY = "Austria"
 
 export function getPoliticalLeanHistory(country: string): PoliticalLeanPoint[] {
   return politicalLeanHistoryByCountry[country] ?? []
+}
+
+export type CountryRanking = {
+  label: string
+  rank: number
+  total: number
+  value: string
+  color: string
+}
+
+/** Where a country lands across each ranking, in table order */
+export function getCountryRankings(country: string): CountryRanking[] {
+  return [
+    {
+      label: "Native / European share",
+      rank: rankedByNative.findIndex((d) => d.country === country) + 1,
+      total: rankedByNative.length,
+      value: `${rankedByNative.find((d) => d.country === country)?.native}%`,
+      color: COLORS.native,
+    },
+    {
+      label: "Anti-immigration intensity",
+      rank: rankedByAntiImmig.findIndex((d) => d.country === country) + 1,
+      total: rankedByAntiImmig.length,
+      value: `${rankedByAntiImmig.find((d) => d.country === country)?.antiImmig}%`,
+      color: COLORS.anti,
+    },
+    {
+      label: "Market capitalization",
+      rank: rankedByMarketCap.findIndex((d) => d.country === country) + 1,
+      total: rankedByMarketCap.length,
+      value: formatMarketCap(
+        rankedByMarketCap.find((d) => d.country === country)?.marketCap ?? 0
+      ),
+      color: COLORS.marketCap,
+    },
+    {
+      label: "Native median age (youngest first)",
+      rank: rankedByMedianAge.findIndex((d) => d.country === country) + 1,
+      total: rankedByMedianAge.length,
+      value: `${formatMedianAge(
+        rankedByMedianAge.find((d) => d.country === country)?.medianAge ?? 0
+      )} yrs`,
+      color: COLORS.medianAge,
+    },
+  ]
 }
 
 export const COLORS = {

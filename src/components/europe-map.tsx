@@ -5,6 +5,7 @@ import {
   geoPath,
   type GeoPermissibleObjects,
 } from "d3-geo"
+import Link from "next/link"
 import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import { feature } from "topojson-client"
 import type { Feature, FeatureCollection, Geometry } from "geojson"
@@ -23,6 +24,7 @@ import {
   maxMapMedianAge,
   medianAgeYouthIntensity,
   minMapMedianAge,
+  slugify,
   type CountryDemographics,
 } from "@/lib/demographics"
 
@@ -279,6 +281,9 @@ function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): stri
   return "color-mix(in oklch, var(--foreground) 35%, var(--background))"
 }
 
+/** Countries too small/cramped to reliably click or label on the map — listed in a sidebar instead, like the US map's small states. */
+const SIDEBAR_COUNTRIES = ["Switzerland", "Austria", "Netherlands", "Denmark", "Ireland"]
+
 export function EuropeMap() {
   const [features, setFeatures] = useState<CountryFeature[]>([])
   const [metric, setMetric] = useState<MapMetric>("antiImmig")
@@ -386,7 +391,7 @@ export function EuropeMap() {
             variant={metric === "native" ? "default" : "secondary"}
             onClick={() => setMetric("native")}
           >
-            Native / white
+            Native / European
           </Button>
           <Button
             type="button"
@@ -405,118 +410,139 @@ export function EuropeMap() {
             Native median age
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Hover for preview · click a highlighted country for details
-        </p>
       </div>
 
-      <div className="relative overflow-hidden rounded-lg border border-border bg-muted">
-        {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
-            Loading map…
-          </div>
-        )}
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="h-auto w-full touch-pan-y"
-          role="img"
-          aria-label="Interactive map of Europe showing demographic metrics"
-        >
-          <rect width={WIDTH} height={HEIGHT} fill="var(--muted)" />
-          {orderedFeatures.map((f) => {
-            const id = isoKey(f.id)
-            const data = demographicsByIso[id]
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
+              Loading map…
+            </div>
+          )}
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="h-auto w-full touch-pan-y"
+            role="img"
+            aria-label="Interactive map of Europe showing demographic metrics"
+          >
+            {orderedFeatures.map((f) => {
+              const id = isoKey(f.id)
+              const data = demographicsByIso[id]
+              const isHovered = hoveredId === id
+              const isSelected = selectedId === id
+              const d = path(f as GeoPermissibleObjects)
+              if (!d) return null
+
+              return (
+                <path
+                  key={id || f.properties.name}
+                  d={d}
+                  fill={fillFor(data, metric, isHovered, isSelected)}
+                  stroke={strokeFor(metric, isSelected, isHovered)}
+                  strokeWidth={isSelected ? 1.75 : isHovered ? 1.25 : 0.55}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  className={
+                    data
+                      ? "cursor-pointer transition-[fill,stroke-width] duration-150"
+                      : "cursor-default"
+                  }
+                  onMouseEnter={(e) => {
+                    setHoveredId(id)
+                    updatePointer(e)
+                  }}
+                  onMouseMove={updatePointer}
+                  onMouseLeave={() => {
+                    setHoveredId(null)
+                    setPointer(null)
+                  }}
+                  onClick={() => {
+                    if (!data) return
+                    setSelectedId((prev) => (prev === id ? null : id))
+                  }}
+                >
+                  <title>
+                    {data
+                      ? `${data.country}: ${metricLabel(data, metric)}`
+                      : `${f.properties.name}: no data`}
+                  </title>
+                </path>
+              )
+            })}
+          </svg>
+
+          {hoveredId && pointer && (
+            <div
+              className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
+              style={{
+                left: `min(${pointer.x}%, calc(100% - 10rem))`,
+                top: `max(${pointer.y - 2}%, 0.5rem)`,
+                transform: "translateY(-100%)",
+              }}
+            >
+              {hovered ? (
+                <>
+                  <div className="font-medium text-foreground">{hovered.country}</div>
+                  <div className="tabular-nums text-muted-foreground">
+                    {metric === "antiImmig" ? (
+                      <>
+                        Opposition{" "}
+                        <span style={{ color: COLORS.anti }}>{hovered.antiImmig}%</span>
+                      </>
+                    ) : metric === "marketCap" ? (
+                      <>
+                        Market cap{" "}
+                        <span style={{ color: COLORS.marketCap }}>
+                          {formatMarketCap(hovered.marketCap)}
+                        </span>
+                      </>
+                    ) : metric === "medianAge" ? (
+                      <>
+                        Native median age{" "}
+                        <span style={{ color: COLORS.medianAge }}>
+                          {formatMedianAge(hovered.medianAge)} yrs
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Native / European{" "}
+                        <span style={{ color: COLORS.native }}>{hovered.native}%</span>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="font-medium text-foreground">
+                  {hoveredName ?? "Unknown"}: no data
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-border sm:w-36">
+          {SIDEBAR_COUNTRIES.map((name) => {
+            const data = mapDemographicsData.find((d) => d.country === name)
+            if (!data) return null
+            const id = String(Number(data.isoNumeric))
             const isHovered = hoveredId === id
             const isSelected = selectedId === id
-            const d = path(f as GeoPermissibleObjects)
-            if (!d) return null
-
             return (
-              <path
-                key={id || f.properties.name}
-                d={d}
-                fill={fillFor(data, metric, isHovered, isSelected)}
-                stroke={strokeFor(metric, isSelected, isHovered)}
-                strokeWidth={isSelected ? 1.75 : isHovered ? 1.25 : 0.55}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-                className={
-                  data
-                    ? "cursor-pointer transition-[fill,stroke-width] duration-150"
-                    : "cursor-default"
-                }
-                onMouseEnter={(e) => {
-                  setHoveredId(id)
-                  updatePointer(e)
-                }}
-                onMouseMove={updatePointer}
-                onMouseLeave={() => {
-                  setHoveredId(null)
-                  setPointer(null)
-                }}
-                onClick={() => {
-                  if (!data) return
-                  setSelectedId((prev) => (prev === id ? null : id))
-                }}
+              <button
+                key={name}
+                type="button"
+                className="block w-full cursor-pointer border-b border-border/60 px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors last:border-b-0"
+                style={{ background: fillFor(data, metric, isHovered, isSelected) }}
+                onMouseEnter={() => setHoveredId(id)}
+                onMouseLeave={() => setHoveredId(null)}
+                onClick={() => setSelectedId((prev) => (prev === id ? null : id))}
               >
-                <title>
-                  {data
-                    ? `${data.country}: ${metricLabel(data, metric)}`
-                    : `${f.properties.name}: cooked`}
-                </title>
-              </path>
+                {name}
+              </button>
             )
           })}
-        </svg>
-
-        {hoveredId && pointer && (
-          <div
-            className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
-            style={{
-              left: `min(${pointer.x}%, calc(100% - 10rem))`,
-              top: `max(${pointer.y - 2}%, 0.5rem)`,
-              transform: "translateY(-100%)",
-            }}
-          >
-            {hovered ? (
-              <>
-                <div className="font-medium text-foreground">{hovered.country}</div>
-                <div className="tabular-nums text-muted-foreground">
-                  {metric === "antiImmig" ? (
-                    <>
-                      Opposition{" "}
-                      <span style={{ color: COLORS.anti }}>{hovered.antiImmig}%</span>
-                    </>
-                  ) : metric === "marketCap" ? (
-                    <>
-                      Market cap{" "}
-                      <span style={{ color: COLORS.marketCap }}>
-                        {formatMarketCap(hovered.marketCap)}
-                      </span>
-                    </>
-                  ) : metric === "medianAge" ? (
-                    <>
-                      Native median age{" "}
-                      <span style={{ color: COLORS.medianAge }}>
-                        {formatMedianAge(hovered.medianAge)} yrs
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      Native / white{" "}
-                      <span style={{ color: COLORS.native }}>{hovered.native}%</span>
-                    </>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="font-medium text-foreground">
-                {hoveredName ?? "Unknown"}: cooked
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
@@ -524,19 +550,31 @@ export function EuropeMap() {
           {detail ? (
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-base font-semibold text-foreground">{detail.country}</h3>
-                {selected && (
-                  <button
-                    type="button"
+                <h3 className="text-base font-semibold text-foreground">
+                  <Link href={`/country/${slugify(detail.country)}`} className="hover:underline">
+                    {detail.country}
+                  </Link>
+                </h3>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/country/${slugify(detail.country)}`}
                     className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                    onClick={() => setSelectedId(null)}
                   >
-                    Clear selection
-                  </button>
-                )}
+                    Full profile →
+                  </Link>
+                  {selected && (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                      onClick={() => setSelectedId(null)}
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                </div>
               </div>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 tabular-nums sm:grid-cols-4">
-                <Stat label="Native / white" value={`${detail.native}%`} color={COLORS.native} />
+                <Stat label="Native / European" value={`${detail.native}%`} color={COLORS.native} />
                 <Stat label="Catholic" value={`${detail.catholic}%`} color={COLORS.catholic} />
                 <Stat label="Protestant" value={`${detail.protestant}%`} color={COLORS.protestant} />
                 <Stat label="Orthodox" value={`${detail.orthodox}%`} color={COLORS.orthodox} />

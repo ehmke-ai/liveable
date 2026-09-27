@@ -24,14 +24,21 @@ import {
 
 const chartConfig = {
   native: {
-    label: "Native / white share",
+    label: "Native / European share",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig
 
-export function NativeShareTrendChart() {
-  const [country, setCountry] = useState(DEFAULT_NATIVE_SHARE_COUNTRY)
-  const chartData = getNativeShareHistory(country)
+export function NativeShareTrendChart({
+  country: fixedCountry,
+  hideSelector,
+}: {
+  country?: string
+  hideSelector?: boolean
+} = {}) {
+  const [country, setCountry] = useState(fixedCountry ?? DEFAULT_NATIVE_SHARE_COUNTRY)
+  const activeCountry = fixedCountry ?? country
+  const chartData = getNativeShareHistory(activeCountry)
   const minNative = chartData.length
     ? Math.min(...chartData.map((d) => d.native))
     : 50
@@ -39,28 +46,30 @@ export function NativeShareTrendChart() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor="native-share-country" className="text-sm text-muted-foreground">
-          Country
-        </label>
-        <Select
-          value={country}
-          onValueChange={(value) => {
-            if (value) setCountry(value)
-          }}
-        >
-          <SelectTrigger id="native-share-country" className="min-w-[11rem]">
-            <SelectValue placeholder="Select a country" />
-          </SelectTrigger>
-          <SelectContent>
-            {nativeShareHistoryCountries.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {!hideSelector && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="native-share-country" className="text-sm text-muted-foreground">
+            Country
+          </label>
+          <Select
+            value={country}
+            onValueChange={(value) => {
+              if (value) setCountry(value)
+            }}
+          >
+            <SelectTrigger id="native-share-country" className="min-w-[11rem]">
+              <SelectValue placeholder="Select a country" />
+            </SelectTrigger>
+            <SelectContent>
+              {nativeShareHistoryCountries.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <ChartContainer
         config={chartConfig}
@@ -99,7 +108,7 @@ export function NativeShareTrendChart() {
                 }}
                 formatter={(value) => (
                   <div className="flex w-full items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Native / white</span>
+                    <span className="text-muted-foreground">Native / European</span>
                     <span className="font-mono font-medium tabular-nums text-foreground">
                       {value}%
                     </span>

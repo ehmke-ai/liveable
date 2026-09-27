@@ -21,6 +21,7 @@ import {
   DEFAULT_POLITICAL_LEAN_COUNTRY,
   getPoliticalLeanHistory,
   politicalLeanHistoryCountries,
+  type PoliticalLeanPoint,
 } from "@/lib/demographics"
 
 const chartConfig = {
@@ -49,9 +50,19 @@ const SERIES = [
   { key: "rightWing" as const, label: "Right wing" },
 ]
 
-export function PoliticalLeanTrendChart() {
-  const [country, setCountry] = useState(DEFAULT_POLITICAL_LEAN_COUNTRY)
-  const chartData = getPoliticalLeanHistory(country)
+export function PoliticalLeanTrendChart({
+  country: fixedCountry,
+  hideSelector,
+  data,
+}: {
+  country?: string
+  hideSelector?: boolean
+  /** Overrides the country lookup, e.g. for US states */
+  data?: PoliticalLeanPoint[]
+} = {}) {
+  const [country, setCountry] = useState(fixedCountry ?? DEFAULT_POLITICAL_LEAN_COUNTRY)
+  const activeCountry = fixedCountry ?? country
+  const chartData = data ?? getPoliticalLeanHistory(activeCountry)
   const leanValues = chartData.flatMap((d) => [
     d.leftWing,
     d.leftOfCenter,
@@ -65,28 +76,30 @@ export function PoliticalLeanTrendChart() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor="political-lean-country" className="text-sm text-muted-foreground">
-          Country
-        </label>
-        <Select
-          value={country}
-          onValueChange={(value) => {
-            if (value) setCountry(value)
-          }}
-        >
-          <SelectTrigger id="political-lean-country" className="min-w-[11rem]">
-            <SelectValue placeholder="Select a country" />
-          </SelectTrigger>
-          <SelectContent>
-            {politicalLeanHistoryCountries.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {!hideSelector && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="political-lean-country" className="text-sm text-muted-foreground">
+            Country
+          </label>
+          <Select
+            value={country}
+            onValueChange={(value) => {
+              if (value) setCountry(value)
+            }}
+          >
+            <SelectTrigger id="political-lean-country" className="min-w-[11rem]">
+              <SelectValue placeholder="Select a country" />
+            </SelectTrigger>
+            <SelectContent>
+              {politicalLeanHistoryCountries.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <ChartContainer
         config={chartConfig}

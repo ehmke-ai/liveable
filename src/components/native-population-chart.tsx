@@ -19,7 +19,7 @@ import { maxNative, rankedByNative } from "@/lib/demographics"
 
 const chartConfig = {
   native: {
-    label: "Native / white share",
+    label: "Native / European share",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig
@@ -72,7 +72,7 @@ export function NativePopulationChart() {
                 return (
                   <div className="flex w-full items-center justify-between gap-4">
                     <span className="text-muted-foreground">
-                      Rank #{rank} · native / white
+                      Rank #{rank} · native / European
                     </span>
                     <span className="font-mono font-medium tabular-nums text-foreground">
                       {value}%

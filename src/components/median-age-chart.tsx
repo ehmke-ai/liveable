@@ -25,7 +25,7 @@ import {
 
 const chartConfig = {
   medianAge: {
-    label: "Native / white median age",
+    label: "Native / European median age",
     color: "var(--chart-3)",
   },
 } satisfies ChartConfig
@@ -78,7 +78,7 @@ export function MedianAgeChart() {
                 return (
                   <div className="flex w-full items-center justify-between gap-4">
                     <span className="text-muted-foreground">
-                      Rank #{rank} · native / white median age
+                      Rank #{rank} · native / European median age
                     </span>
                     <span className="font-mono font-medium tabular-nums text-foreground">
                       {formatMedianAge(Number(value))} yrs

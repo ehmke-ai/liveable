@@ -17,11 +17,15 @@ import {
 import { demographicsData } from "@/lib/demographics"
 
 const chartConfig = {
-  native: { label: "Native / white", color: "var(--chart-1)" },
+  native: { label: "Native / European", color: "var(--chart-1)" },
   catholic: { label: "Catholic", color: "var(--chart-2)" },
   protestant: { label: "Protestant", color: "var(--chart-3)" },
   orthodox: { label: "Orthodox", color: "var(--chart-4)" },
 } satisfies ChartConfig
+
+const sortedData = [...demographicsData].sort((a, b) =>
+  a.country.localeCompare(b.country)
+)
 
 export function DemographicsBarChart() {
   return (
@@ -31,7 +35,7 @@ export function DemographicsBarChart() {
       initialDimension={{ width: 900, height: 420 }}
     >
       <BarChart
-        data={demographicsData}
+        data={sortedData}
         margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
       >
         <CartesianGrid vertical={false} stroke="var(--border)" />
