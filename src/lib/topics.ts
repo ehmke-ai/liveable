@@ -3,7 +3,6 @@ import {
   Church,
   Hourglass,
   Landmark,
-  LineChart,
   Map as MapIcon,
   ShieldAlert,
   Users,
@@ -36,16 +35,11 @@ export const topics: Topic[] = [
     icon: MapIcon,
   },
   {
-    slug: "native-ranking",
-    label: "Native share ranking",
-    description: "Countries ranked by approximate native / European population share.",
+    slug: "native-share",
+    label: "Native share",
+    description:
+      "Countries ranked by approximate native / European population share, and how it has changed since 1960.",
     icon: Users,
-  },
-  {
-    slug: "native-trend",
-    label: "Native share over time",
-    description: "How the native / European share has changed from 1960 to 2025.",
-    icon: LineChart,
   },
   {
     slug: "politics",
