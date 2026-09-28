@@ -20,17 +20,16 @@ import {
 import { COLORS, getCountryBySlug } from "@/lib/demographics"
 import {
   countyEthnicBreakdown,
+  countyLabel,
   countySlug,
   foldedCountyBreakdown,
-  getCountyBySlug,
-  getStateBySlug,
   latestPopulation,
-  statesWithCounties,
 } from "@/lib/states"
+import { getCounties, getCountyBySlug, getStateBySlug, statesData } from "@/lib/state-data"
 
 export function generateStaticParams() {
-  return statesWithCounties().flatMap((s) =>
-    (s.countyDemographics ?? []).map((c) => ({ state: s.slug, county: countySlug(c.name) }))
+  return statesData.flatMap((s) =>
+    getCounties(s).map((c) => ({ state: s.slug, county: countySlug(c.name) }))
   )
 }
 
@@ -44,8 +43,8 @@ export async function generateMetadata({
   const data = state && getCountyBySlug(state, county)
   if (!state || !data) return { title: "County not found" }
   return {
-    title: `${data.name} County, ${state.state} — Demographics`,
-    description: `Demographic breakdown for ${data.name} County, ${state.state}.`,
+    title: `${countyLabel(data)}, ${state.state} — Demographics`,
+    description: `Demographic breakdown for ${countyLabel(data)}, ${state.state}.`,
   }
 }
 
@@ -72,6 +71,7 @@ export default async function CountyPage({
   if (!data) notFound()
 
   const us = getCountryBySlug("united-states")
+  const label = countyLabel(data)
   const statePopulation = latestPopulation(state)
   const breakdown = foldedCountyBreakdown(state, data)
   const countyEthnic = countyEthnicBreakdown(state, data)
@@ -117,7 +117,7 @@ export default async function CountyPage({
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
       <header className="mb-7">
-        <h1 className="sr-only">{data.name} County</h1>
+        <h1 className="sr-only">{label}</h1>
       </header>
 
       <Card className="border-border bg-card shadow-none">
@@ -144,7 +144,7 @@ export default async function CountyPage({
       <header className="mt-12 mb-7">
         <h2 className="section-title">Compared with {state.state} and the United States</h2>
         <p className="section-sub">
-          {data.name} County next to the state and national figures used elsewhere on this
+          {label} next to the state and national figures used elsewhere on this
           site. A dash means the figure isn&rsquo;t published at that level of geography.
         </p>
       </header>
@@ -155,7 +155,7 @@ export default async function CountyPage({
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Metric</TableHead>
-                <TableHead className="text-right">{data.name} County</TableHead>
+                <TableHead className="text-right">{label}</TableHead>
                 <TableHead className="text-right">{state.state}</TableHead>
                 <TableHead className="text-right">United States</TableHead>
               </TableRow>

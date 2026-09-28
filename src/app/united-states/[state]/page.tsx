@@ -25,11 +25,15 @@ import {
   POPULATION_GROUP_LABELS,
   POPULATION_LABEL_THRESHOLD,
   type PopulationGroup,
-  getStateBySlug,
   latestPopulation,
   stackPopulationHistory,
-  statesData,
 } from "@/lib/states"
+import { getCounties, getStateBySlug, statesData } from "@/lib/state-data"
+
+const COUNTY_NOUN: Record<string, string> = {
+  AK: "boroughs and census areas",
+  LA: "parishes",
+}
 
 export function generateStaticParams() {
   return statesData.map((s) => ({ state: s.slug }))
@@ -83,6 +87,7 @@ export default async function StatePage({
   if (!state) notFound()
 
   const us = getCountryBySlug("united-states")
+  const counties = getCounties(state)
   const population = latestPopulation(state)
   const stacked = stackPopulationHistory(state.populationHistory)
   const groups = Object.keys(POPULATION_GROUP_LABELS) as PopulationGroup[]
@@ -273,20 +278,20 @@ export default async function StatePage({
         </CardContent>
       </Card>
 
-      {state.countyDemographics && (
+      {counties.length > 0 && (
         <>
           <header className="mt-12 mb-7">
             <h2 className="section-title">Non-Hispanic White share by county</h2>
             <p className="section-sub">
-              White alone, not Hispanic or Latino, % of population across all {state.countyDemographics.length}{" "}
-              {state.state} counties. Hover a county to preview its figure, click to open its page — or browse
+              White alone, not Hispanic or Latino, % of population across all {counties.length}{" "}
+              {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}. Hover a county to preview its figure, click to open its page — or browse
               the full list below.
             </p>
           </header>
 
           <Card className="border-border bg-card shadow-none">
             <CardContent>
-              <StateCountyMap state={state} />
+              <StateCountyMap key={state.slug} state={state} counties={counties} />
             </CardContent>
           </Card>
         </>
@@ -333,6 +338,7 @@ export default async function StatePage({
           candidates, such as George Wallace in 1968, are omitted, so the lines need not sum to
           100%. State GDP is shown in place of market capitalization, which is not published at
           the state level.
+          {state.notes?.map((note) => ` ${note}.`)}
         </p>
       </footer>
     </main>

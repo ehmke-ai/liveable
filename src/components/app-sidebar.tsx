@@ -17,7 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { demographicsData, slugify } from "@/lib/demographics"
-import { statesData } from "@/lib/states"
+import { stateNav } from "@/lib/states"
 import { topicHref, topics } from "@/lib/topics"
 
 const sortedCountries = [...demographicsData].sort((a, b) =>
@@ -89,7 +89,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>US states</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {statesData.map((s) => {
+              {stateNav.map((s) => {
                 const href = `/united-states/${s.slug}`
                 return (
                   <SidebarMenuItem key={s.slug}>

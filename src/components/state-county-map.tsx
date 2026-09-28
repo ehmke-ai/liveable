@@ -1,6 +1,6 @@
 "use client"
 
-import { geoAlbers, geoPath, type GeoPermissibleObjects } from "d3-geo"
+import { geoCentroid, geoConicEqualArea, geoPath, type GeoPermissibleObjects } from "d3-geo"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react"
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/combobox"
 import {
   countyGeoUrl,
+  countyLabel,
   countySlug,
   foldedCountyBreakdown,
   rangeIntensity,
@@ -68,9 +69,14 @@ function groupByLetter(counties: CountyDemographics[]) {
   return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
 }
 
-export function StateCountyMap({ state }: { state: StateDemographics }) {
+export function StateCountyMap({
+  state,
+  counties: data,
+}: {
+  state: StateDemographics
+  counties: CountyDemographics[]
+}) {
   const router = useRouter()
-  const data = useMemo(() => state.countyDemographics ?? [], [state.countyDemographics])
 
   const [features, setFeatures] = useState<CountyFeature[]>([])
   const [hoveredFips, setHoveredFips] = useState<string | null>(null)
@@ -86,7 +92,7 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
     [data]
   )
   const countyOptions = useMemo(
-    () => sortedCounties.map((c) => ({ value: c.fips, label: `${c.name} County` })),
+    () => sortedCounties.map((c) => ({ value: c.fips, label: countyLabel(c) })),
     [sortedCounties]
   )
   const countyGroups = useMemo(() => groupByLetter(sortedCounties), [sortedCounties])
@@ -109,7 +115,6 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     fetch(countyGeoUrl(state))
       .then((r) => r.json())
       .then((topology: Topology<{ counties: GeometryCollection }>) => {
@@ -137,18 +142,29 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
   )
 
   const projection = useMemo(() => {
-    const proj = geoAlbers()
+    const proj = geoConicEqualArea()
     if (!features.length) return proj.scale(2500).translate([WIDTH / 2, HEIGHT / 2])
-    return proj.fitExtent(
-      [
-        [PAD, PAD],
-        [WIDTH - PAD, HEIGHT - PAD],
-      ],
-      collection
-    )
+    // Center the cone on the state so it sits upright instead of sheared like on a US-wide map
+    const [lon, lat] = geoCentroid(collection)
+    return proj
+      .rotate([-lon, 0])
+      .parallels([lat - 5, lat + 5])
+      .fitExtent(
+        [
+          [PAD, PAD],
+          [WIDTH - PAD, HEIGHT - PAD],
+        ],
+        collection
+      )
   }, [collection, features.length])
 
   const path = useMemo(() => geoPath(projection), [projection])
+
+  const viewBox = useMemo(() => {
+    if (!features.length) return `0 0 ${WIDTH} ${HEIGHT}`
+    const [[x0, y0], [x1, y1]] = path.bounds(collection)
+    return `${x0 - PAD} ${y0 - PAD} ${x1 - x0 + 2 * PAD} ${y1 - y0 + 2 * PAD}`
+  }, [collection, features.length, path])
 
   const orderedFeatures = useMemo(() => {
     if (!hoveredFips) return features
@@ -170,7 +186,7 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
           </div>
         )}
         <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          viewBox={viewBox}
           className="h-auto w-full touch-pan-y"
           role="img"
           aria-label={`Interactive map of ${state.state} counties showing non-Hispanic White population share`}
@@ -202,7 +218,7 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
                 vectorEffect="non-scaling-stroke"
                 tabIndex={county ? 0 : undefined}
                 role={county ? "link" : undefined}
-                aria-label={county ? `${county.name} County` : undefined}
+                aria-label={county ? countyLabel(county) : undefined}
                 className={`${county ? "cursor-pointer" : "cursor-default"} transition-[fill,stroke-width] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
                 onMouseEnter={(e) => {
                   setHoveredFips(fips)
@@ -223,7 +239,7 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
               >
                 <title>
                   {county
-                    ? `${county.name}: ${county.nonHispanicWhitePct}% non-Hispanic White`
+                    ? `${countyLabel(county)}: ${county.nonHispanicWhitePct}% non-Hispanic White`
                     : `${f.properties.name}: no data`}
                 </title>
               </path>
@@ -240,7 +256,7 @@ export function StateCountyMap({ state }: { state: StateDemographics }) {
               transform: "translateY(-100%)",
             }}
           >
-            <div className="font-medium text-foreground">{hovered.name} County</div>
+            <div className="font-medium text-foreground">{countyLabel(hovered)}</div>
             <ul className="mt-1.5 space-y-0.5 tabular-nums">
               {foldedCountyBreakdown(state, hovered).map(({ key, label, value }) => (
                 <li key={key} className="flex items-center justify-between gap-3">

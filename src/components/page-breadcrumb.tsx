@@ -12,7 +12,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { getCountryBySlug } from "@/lib/demographics"
-import { getCountyBySlug, getStateBySlug } from "@/lib/states"
+import countyLabels from "@/data/county-labels.json"
+import { stateNavBySlug } from "@/lib/states"
 import { topics } from "@/lib/topics"
 
 type Crumb = { label: string; href?: string }
@@ -33,14 +34,15 @@ function crumbsForPathname(pathname: string): Crumb[] {
   }
 
   if (section === "united-states" && slug) {
-    const state = getStateBySlug(slug)
+    const state = stateNavBySlug[slug]
     const countySegment = segments[2]
     if (state && countySegment) {
-      const county = getCountyBySlug(state, countySegment)
+      const labels: Record<string, string> | undefined =
+        countyLabels[state.slug as keyof typeof countyLabels]
       return [
         { label: "United States", href: "/united-states" },
         { label: state.state, href: `/united-states/${state.slug}` },
-        { label: county ? `${county.name} County` : countySegment },
+        { label: labels?.[countySegment] ?? countySegment },
       ]
     }
     return [

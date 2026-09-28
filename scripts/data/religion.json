@@ -1,0 +1,359 @@
+{
+ "AL": {
+  "catholic": 6,
+  "protestant": 66,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/alabama/",
+  "note": "Orthodox shown as <1% (0.07%); recorded 0; Protestant = evangelical 43% + mainline 10% + hist. Black 13% (66.25% unrounded)"
+ },
+ "AK": {
+  "catholic": 15,
+  "protestant": 37,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/alaska/",
+  "note": "Protestant = evangelical 26% + mainline 9% + hist. Black 1% (36.57% unrounded)"
+ },
+ "AZ": {
+  "catholic": 21,
+  "protestant": 30,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/arizona/",
+  "note": "Orthodox shown as <1% (0.34%); recorded 0; Protestant = evangelical 19% + mainline 10% + hist. Black 1% (29.91% unrounded)"
+ },
+ "AR": {
+  "catholic": 5,
+  "protestant": 71,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/arkansas/",
+  "note": "Protestant = evangelical 50% + mainline 13% + hist. Black 8% (71.12% unrounded)"
+ },
+ "CA": {
+  "catholic": 25,
+  "protestant": 26,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/california/",
+  "note": "Protestant = evangelical 16% + mainline 8% + hist. Black 2% (26.17% unrounded)"
+ },
+ "CO": {
+  "catholic": 14,
+  "protestant": 31,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/colorado/",
+  "note": "Protestant = evangelical 17% + mainline 13% + hist. Black <1% (30.53% unrounded)"
+ },
+ "CT": {
+  "catholic": 35,
+  "protestant": 20,
+  "orthodox": 2,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/connecticut/",
+  "note": "Protestant = evangelical 6% + mainline 11% + hist. Black 2% (19.52% unrounded)"
+ },
+ "DE": {
+  "catholic": 19,
+  "protestant": 49,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/delaware/",
+  "note": "Orthodox shown as <1% (0.36%); recorded 0; Protestant = evangelical 19% + mainline 16% + hist. Black 15% (49.20% unrounded)"
+ },
+ "DC": {
+  "catholic": 13,
+  "protestant": 40,
+  "orthodox": 2,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/district-of-columbia/",
+  "note": "Protestant = evangelical 7% + mainline 11% + hist. Black 21% (39.80% unrounded)"
+ },
+ "FL": {
+  "catholic": 22,
+  "protestant": 39,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/florida/",
+  "note": "Protestant = evangelical 22% + mainline 9% + hist. Black 7% (38.80% unrounded)"
+ },
+ "GA": {
+  "catholic": 8,
+  "protestant": 57,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/georgia/",
+  "note": "Protestant = evangelical 33% + mainline 10% + hist. Black 14% (56.84% unrounded)"
+ },
+ "HI": {
+  "catholic": 16,
+  "protestant": 37,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/hawaii/",
+  "note": "Protestant = evangelical 20% + mainline 14% + hist. Black 4% (37.49% unrounded)"
+ },
+ "ID": {
+  "catholic": 9,
+  "protestant": 38,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/idaho/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 31% + mainline 7% + hist. Black <1% (37.87% unrounded)"
+ },
+ "IL": {
+  "catholic": 23,
+  "protestant": 36,
+  "orthodox": 2,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/illinois/",
+  "note": "Protestant = evangelical 16% + mainline 13% + hist. Black 7% (36.01% unrounded)"
+ },
+ "IN": {
+  "catholic": 16,
+  "protestant": 47,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/indiana/",
+  "note": "Orthodox shown as <1% (0.19%); recorded 0; Protestant = evangelical 32% + mainline 11% + hist. Black 3% (46.75% unrounded)"
+ },
+ "IA": {
+  "catholic": 15,
+  "protestant": 46,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/iowa/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 21% + mainline 25% + hist. Black 1% (45.83% unrounded)"
+ },
+ "KS": {
+  "catholic": 19,
+  "protestant": 48,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/kansas/",
+  "note": "Protestant = evangelical 27% + mainline 18% + hist. Black 3% (47.84% unrounded)"
+ },
+ "KY": {
+  "catholic": 11,
+  "protestant": 60,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/kentucky/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 46% + mainline 11% + hist. Black 2% (59.95% unrounded)"
+ },
+ "LA": {
+  "catholic": 23,
+  "protestant": 49,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/louisiana/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 33% + mainline 6% + hist. Black 11% (49.10% unrounded)"
+ },
+ "ME": {
+  "catholic": 14,
+  "protestant": 36,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/maine/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 22% + mainline 13% + hist. Black 1% (35.62% unrounded)"
+ },
+ "MD": {
+  "catholic": 12,
+  "protestant": 43,
+  "orthodox": 2,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/maryland/",
+  "note": "Protestant = evangelical 15% + mainline 13% + hist. Black 15% (42.90% unrounded)"
+ },
+ "MA": {
+  "catholic": 29,
+  "protestant": 20,
+  "orthodox": 2,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/massachusetts/",
+  "note": "Protestant = evangelical 8% + mainline 10% + hist. Black 3% (20.42% unrounded)"
+ },
+ "MI": {
+  "catholic": 19,
+  "protestant": 41,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/michigan/",
+  "note": "Orthodox shown as <1% (0.37%); recorded 0; Protestant = evangelical 21% + mainline 14% + hist. Black 5% (40.63% unrounded)"
+ },
+ "MN": {
+  "catholic": 18,
+  "protestant": 43,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/minnesota/",
+  "note": "Orthodox shown as <1% (0.32%); recorded 0; Protestant = evangelical 20% + mainline 22% + hist. Black 1% (42.72% unrounded)"
+ },
+ "MS": {
+  "catholic": 5,
+  "protestant": 71,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/mississippi/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 42% + mainline 9% + hist. Black 20% (70.94% unrounded)"
+ },
+ "MO": {
+  "catholic": 14,
+  "protestant": 46,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/missouri/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 31% + mainline 10% + hist. Black 5% (45.72% unrounded)"
+ },
+ "MT": {
+  "catholic": 12,
+  "protestant": 39,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/montana/",
+  "note": "Orthodox shown as <1% (0.06%); recorded 0; Protestant = evangelical 28% + mainline 11% + hist. Black <1% (38.94% unrounded)"
+ },
+ "NE": {
+  "catholic": 20,
+  "protestant": 53,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/nebraska/",
+  "note": "Orthodox shown as <1% (0.06%); recorded 0; Protestant = evangelical 31% + mainline 22% + hist. Black <1% (52.96% unrounded)"
+ },
+ "NV": {
+  "catholic": 21,
+  "protestant": 33,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/nevada/",
+  "note": "Orthodox shown as <1% (0.13%); recorded 0; Protestant = evangelical 18% + mainline 9% + hist. Black 6% (33.14% unrounded)"
+ },
+ "NH": {
+  "catholic": 20,
+  "protestant": 24,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/new-hampshire/",
+  "note": "Protestant = evangelical 10% + mainline 13% + hist. Black 1% (23.82% unrounded)"
+ },
+ "NJ": {
+  "catholic": 33,
+  "protestant": 25,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/new-jersey/",
+  "note": "Protestant = evangelical 9% + mainline 10% + hist. Black 5% (24.53% unrounded)"
+ },
+ "NM": {
+  "catholic": 27,
+  "protestant": 32,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/new-mexico/",
+  "note": "Orthodox shown as <1% (0.05%); recorded 0; Protestant = evangelical 25% + mainline 6% + hist. Black 1% (32.07% unrounded)"
+ },
+ "NY": {
+  "catholic": 29,
+  "protestant": 26,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/new-york/",
+  "note": "Protestant = evangelical 10% + mainline 10% + hist. Black 5% (25.61% unrounded)"
+ },
+ "NC": {
+  "catholic": 7,
+  "protestant": 59,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/north-carolina/",
+  "note": "Protestant = evangelical 35% + mainline 13% + hist. Black 11% (58.79% unrounded)"
+ },
+ "ND": {
+  "catholic": 23,
+  "protestant": 49,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/north-dakota/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 21% + mainline 25% + hist. Black 3% (49.17% unrounded)"
+ },
+ "OH": {
+  "catholic": 16,
+  "protestant": 46,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/ohio/",
+  "note": "Protestant = evangelical 26% + mainline 16% + hist. Black 4% (45.88% unrounded)"
+ },
+ "OK": {
+  "catholic": 8,
+  "protestant": 61,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/oklahoma/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 47% + mainline 11% + hist. Black 4% (60.96% unrounded)"
+ },
+ "OR": {
+  "catholic": 8,
+  "protestant": 33,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/oregon/",
+  "note": "Orthodox shown as <1% (0.47%); recorded 0; Protestant = evangelical 25% + mainline 8% + hist. Black <1% (33.20% unrounded)"
+ },
+ "PA": {
+  "catholic": 22,
+  "protestant": 39,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/pennsylvania/",
+  "note": "Orthodox shown as <1% (0.49%); recorded 0; Protestant = evangelical 19% + mainline 15% + hist. Black 5% (38.51% unrounded)"
+ },
+ "RI": {
+  "catholic": 39,
+  "protestant": 22,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/rhode-island/",
+  "note": "Protestant = evangelical 12% + mainline 7% + hist. Black 3% (22.09% unrounded)"
+ },
+ "SC": {
+  "catholic": 7,
+  "protestant": 69,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/south-carolina/",
+  "note": "Orthodox shown as <1% (0.10%); recorded 0; Protestant = evangelical 39% + mainline 13% + hist. Black 17% (69.07% unrounded)"
+ },
+ "SD": {
+  "catholic": 16,
+  "protestant": 61,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/south-dakota/",
+  "note": "Protestant = evangelical 34% + mainline 25% + hist. Black 2% (60.54% unrounded)"
+ },
+ "TN": {
+  "catholic": 7,
+  "protestant": 63,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/tennessee/",
+  "note": "Protestant = evangelical 45% + mainline 12% + hist. Black 6% (62.63% unrounded)"
+ },
+ "TX": {
+  "catholic": 22,
+  "protestant": 43,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/texas/",
+  "note": "Orthodox shown as <1% (0.35%); recorded 0; Protestant = evangelical 27% + mainline 10% + hist. Black 5% (42.56% unrounded)"
+ },
+ "UT": {
+  "catholic": 4,
+  "protestant": 8,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/utah/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 3% + mainline 5% + hist. Black <1% (8.39% unrounded)"
+ },
+ "VT": {
+  "catholic": 18,
+  "protestant": 26,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/vermont/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 8% + mainline 17% + hist. Black <1% (25.56% unrounded)"
+ },
+ "VA": {
+  "catholic": 10,
+  "protestant": 50,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/virginia/",
+  "note": "Protestant = evangelical 25% + mainline 14% + hist. Black 10% (49.62% unrounded)"
+ },
+ "WA": {
+  "catholic": 14,
+  "protestant": 33,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/washington/",
+  "note": "Orthodox shown as <1% (0.34%); recorded 0; Protestant = evangelical 23% + mainline 9% + hist. Black 1% (32.99% unrounded)"
+ },
+ "WV": {
+  "catholic": 3,
+  "protestant": 60,
+  "orthodox": 0,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/west-virginia/",
+  "note": "Orthodox shown as <1% (0.00%); recorded 0; Protestant = evangelical 37% + mainline 21% + hist. Black 2% (59.81% unrounded)"
+ },
+ "WI": {
+  "catholic": 20,
+  "protestant": 39,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/wisconsin/",
+  "note": "Protestant = evangelical 19% + mainline 18% + hist. Black 2% (39.14% unrounded)"
+ },
+ "WY": {
+  "catholic": 12,
+  "protestant": 42,
+  "orthodox": 1,
+  "url": "https://www.pewresearch.org/religious-landscape-study/state/wyoming/",
+  "note": "Protestant = evangelical 23% + mainline 19% + hist. Black <1% (42.36% unrounded)"
+ }
+}

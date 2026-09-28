@@ -21,7 +21,7 @@ import {
   minStateThirtyMarriedHomeowner,
   minStateWealthShareUnder30,
   rangeIntensity,
-  stateByAbbr,
+  stateNavByAbbr,
   stateMapByAbbr,
   stateMapData,
   type StateMapMetrics,
@@ -242,7 +242,7 @@ export function UsMap() {
   const hovered = hoveredId ? stateMapByAbbr[FIPS_TO_ABBR[hoveredId]] : undefined
   const selected = selectedId ? stateMapByAbbr[FIPS_TO_ABBR[selectedId]] : undefined
   const detail = selected ?? hovered
-  const detailPage = detail ? stateByAbbr[detail.abbr] : undefined
+  const detailPage = detail ? stateNavByAbbr[detail.abbr] : undefined
 
   return (
     <div className="space-y-4">
