@@ -2,7 +2,6 @@ import {
   BarChart3,
   Church,
   Hourglass,
-  Landmark,
   Map as MapIcon,
   ShieldAlert,
   Users,
@@ -40,12 +39,6 @@ export const topics: Topic[] = [
     description:
       "Countries ranked by approximate native / European population share, and how it has changed since 1960.",
     icon: Users,
-  },
-  {
-    slug: "politics",
-    label: "Political leanings",
-    description: "Vote share across four left–right bands from 1960 to 2025.",
-    icon: Landmark,
   },
   {
     slug: "anti-immigration",
