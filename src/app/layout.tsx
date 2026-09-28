@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import { Crimson_Pro, Crimson_Text, Geist_Mono, Open_Sans } from "next/font/google"
-import Script from "next/script"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { InlineScript } from "@/components/inline-script"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -53,13 +53,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}})()`,
-          }}
-        />
+        <InlineScript html={`(function(){try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}})()`} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <TooltipProvider>

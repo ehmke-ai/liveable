@@ -465,7 +465,7 @@ export function UsMap() {
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-base font-semibold text-foreground">
                   {detailPage ? (
-                    <Link href={`/state/${detailPage.slug}`} className="hover:underline">
+                    <Link href={`/united-states/${detailPage.slug}`} className="hover:underline">
                       {detail.state}
                     </Link>
                   ) : (
@@ -475,7 +475,7 @@ export function UsMap() {
                 <div className="flex items-center gap-3">
                   {detailPage && (
                     <Link
-                      href={`/state/${detailPage.slug}`}
+                      href={`/united-states/${detailPage.slug}`}
                       className="text-xs text-muted-foreground underline-offset-2 hover:underline"
                     >
                       Full profile →

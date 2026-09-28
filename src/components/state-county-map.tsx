@@ -18,6 +18,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox"
 import {
+  countyGeoUrl,
   countySlug,
   foldedCountyBreakdown,
   rangeIntensity,
@@ -67,7 +68,7 @@ function groupByLetter(counties: CountyDemographics[]) {
   return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
 }
 
-export function TexasCountyMap({ state }: { state: StateDemographics }) {
+export function StateCountyMap({ state }: { state: StateDemographics }) {
   const router = useRouter()
   const data = useMemo(() => state.countyDemographics ?? [], [state.countyDemographics])
 
@@ -93,7 +94,7 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
   const max = useMemo(() => Math.max(...data.map((c) => c.nonHispanicWhitePct)), [data])
 
   function goToCounty(county: CountyDemographics) {
-    router.push(`/united-states/texas/${countySlug(county.name)}`)
+    router.push(`/united-states/${state.slug}/${countySlug(county.name)}`)
   }
 
   function updatePointer(e: MouseEvent<SVGPathElement>) {
@@ -108,7 +109,8 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
 
   useEffect(() => {
     let cancelled = false
-    fetch("/geo/tx-counties-10m.json")
+    setLoading(true)
+    fetch(countyGeoUrl(state))
       .then((r) => r.json())
       .then((topology: Topology<{ counties: GeometryCollection }>) => {
         if (cancelled) return
@@ -127,7 +129,7 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [state])
 
   const collection = useMemo(
     () => ({ type: "FeatureCollection" as const, features }),
@@ -171,7 +173,7 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="h-auto w-full touch-pan-y"
           role="img"
-          aria-label="Interactive map of Texas counties showing non-Hispanic White population share"
+          aria-label={`Interactive map of ${state.state} counties showing non-Hispanic White population share`}
         >
           {orderedFeatures.map((f) => {
             const fips = String(f.id)
@@ -266,7 +268,7 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
           if (county) goToCounty(county)
         }}
       >
-        <ComboboxInput placeholder="Search for a county…" className="w-full sm:w-72" />
+        <ComboboxInput placeholder="Search for a county…" className="w-full rounded-none sm:w-72" />
         <ComboboxContent>
           <ComboboxEmpty>No county found.</ComboboxEmpty>
           <ComboboxList>
@@ -280,7 +282,7 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
       </Combobox>
 
       <div className="rounded-lg border border-border bg-card/40 px-4 py-3">
-        <h3 className="mb-2 text-sm font-medium text-foreground">Browse all counties</h3>
+
         <div className="columns-2 gap-x-6 sm:columns-3 lg:columns-4">
           {countyGroups.map(([letter, counties]) => (
             <div key={letter} className="mb-3 break-inside-avoid">
@@ -289,7 +291,7 @@ export function TexasCountyMap({ state }: { state: StateDemographics }) {
                 {counties.map((county) => (
                   <li key={county.fips}>
                     <Link
-                      href={`/united-states/texas/${countySlug(county.name)}`}
+                      href={`/united-states/${state.slug}/${countySlug(county.name)}`}
                       className="block py-0.5 text-sm text-foreground hover:underline"
                     >
                       {county.name}

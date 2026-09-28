@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/topics/native-ranking", destination: "/topics/native-share", permanent: true },
       { source: "/topics/native-trend", destination: "/topics/native-share", permanent: true },
+      { source: "/state/:slug", destination: "/united-states/:slug", permanent: true },
     ];
   },
 };

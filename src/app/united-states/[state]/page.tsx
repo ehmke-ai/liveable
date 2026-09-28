@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 
 import { PopulationStackChart } from "@/components/population-stack-chart"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
-import { TexasCountyMap } from "@/components/tx-county-map"
+import { StateCountyMap } from "@/components/state-county-map"
 import {
   Card,
   CardContent,
@@ -32,15 +32,15 @@ import {
 } from "@/lib/states"
 
 export function generateStaticParams() {
-  return statesData.map((s) => ({ slug: s.slug }))
+  return statesData.map((s) => ({ state: s.slug }))
 }
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>
+  params: Promise<{ state: string }>
 }): Promise<Metadata> {
-  const { slug } = await params
+  const { state: slug } = await params
   const state = getStateBySlug(slug)
   if (!state) return { title: "State not found" }
   return {
@@ -76,9 +76,9 @@ function Swatch({ color, label }: { color: string; label: string }) {
 export default async function StatePage({
   params,
 }: {
-  params: Promise<{ slug: string }>
+  params: Promise<{ state: string }>
 }) {
-  const { slug } = await params
+  const { state: slug } = await params
   const state = getStateBySlug(slug)
   if (!state) notFound()
 
@@ -286,7 +286,7 @@ export default async function StatePage({
 
           <Card className="border-border bg-card shadow-none">
             <CardContent>
-              <TexasCountyMap state={state} />
+              <StateCountyMap state={state} />
             </CardContent>
           </Card>
         </>

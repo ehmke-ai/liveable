@@ -169,23 +169,27 @@ export default async function CountryPage({
       <header className="mt-12 mb-7">
         <h2 className="section-title">Political leanings over time</h2>
         <p className="section-sub">
-          Parliamentary vote share in four left–right bands from 1960 to 2025.
+          {isUnitedStates
+            ? "Presidential popular vote, Democratic vs. Republican, 1960 to 2024."
+            : "Parliamentary vote share in four left–right bands from 1960 to 2025."}
         </p>
       </header>
 
       <Card className="border-border bg-card shadow-none">
         <CardContent>
-          <PoliticalLeanTrendChart country={country.country} hideSelector />
+          <PoliticalLeanTrendChart country={country.country} hideSelector hideWings={isUnitedStates} />
           <Separator className="my-4" />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <i
-                className="inline-block size-3.5 rounded-[3px]"
-                style={{ background: COLORS.leftWing }}
-                aria-hidden
-              />
-              Left wing
-            </span>
+            {!isUnitedStates && (
+              <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <i
+                  className="inline-block size-3.5 rounded-[3px]"
+                  style={{ background: COLORS.leftWing }}
+                  aria-hidden
+                />
+                Left wing
+              </span>
+            )}
             <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
               <i
                 className="inline-block size-3.5 rounded-[3px]"
@@ -202,14 +206,16 @@ export default async function CountryPage({
               />
               Right of center
             </span>
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <i
-                className="inline-block size-3.5 rounded-[3px]"
-                style={{ background: COLORS.rightWing }}
-                aria-hidden
-              />
-              Right wing
-            </span>
+            {!isUnitedStates && (
+              <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <i
+                  className="inline-block size-3.5 rounded-[3px]"
+                  style={{ background: COLORS.rightWing }}
+                  aria-hidden
+                />
+                Right wing
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

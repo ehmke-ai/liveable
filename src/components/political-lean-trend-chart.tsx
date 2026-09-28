@@ -43,7 +43,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-const SERIES = [
+const ALL_SERIES = [
   { key: "leftWing" as const, label: "Left wing" },
   { key: "leftOfCenter" as const, label: "Left of center" },
   { key: "rightOfCenter" as const, label: "Right of center" },
@@ -53,22 +53,23 @@ const SERIES = [
 export function PoliticalLeanTrendChart({
   country: fixedCountry,
   hideSelector,
+  hideWings,
   data,
 }: {
   country?: string
   hideSelector?: boolean
+  /** Omits the left wing / right wing bands, leaving just left/right of center (US two-party races) */
+  hideWings?: boolean
   /** Overrides the country lookup, e.g. for US states */
   data?: PoliticalLeanPoint[]
 } = {}) {
   const [country, setCountry] = useState(fixedCountry ?? DEFAULT_POLITICAL_LEAN_COUNTRY)
   const activeCountry = fixedCountry ?? country
   const chartData = data ?? getPoliticalLeanHistory(activeCountry)
-  const leanValues = chartData.flatMap((d) => [
-    d.leftWing,
-    d.leftOfCenter,
-    d.rightOfCenter,
-    d.rightWing,
-  ])
+  const SERIES = hideWings
+    ? ALL_SERIES.filter((s) => s.key === "leftOfCenter" || s.key === "rightOfCenter")
+    : ALL_SERIES
+  const leanValues = chartData.flatMap((d) => SERIES.map(({ key }) => d[key]))
   const minLean = leanValues.length ? Math.min(...leanValues) : 0
   const maxLean = leanValues.length ? Math.max(...leanValues) : 55
   const yMin = Math.max(0, Math.floor((minLean - 5) / 5) * 5)

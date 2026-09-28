@@ -12,7 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { getCountryBySlug } from "@/lib/demographics"
-import { getStateBySlug } from "@/lib/states"
+import { getCountyBySlug, getStateBySlug } from "@/lib/states"
 import { topics } from "@/lib/topics"
 
 type Crumb = { label: string; href?: string }
@@ -32,9 +32,21 @@ function crumbsForPathname(pathname: string): Crumb[] {
     ]
   }
 
-  if (section === "state" && slug) {
+  if (section === "united-states" && slug) {
     const state = getStateBySlug(slug)
-    return [{ label: "US states" }, { label: state ? state.state : slug }]
+    const countySegment = segments[2]
+    if (state && countySegment) {
+      const county = getCountyBySlug(state, countySegment)
+      return [
+        { label: "United States", href: "/united-states" },
+        { label: state.state, href: `/united-states/${state.slug}` },
+        { label: county ? `${county.name} County` : countySegment },
+      ]
+    }
+    return [
+      { label: "United States", href: "/united-states" },
+      { label: state ? state.state : slug },
+    ]
   }
 
   if (segments.length === 1) {

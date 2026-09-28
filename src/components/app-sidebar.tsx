@@ -90,7 +90,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {statesData.map((s) => {
-                const href = `/state/${s.slug}`
+                const href = `/united-states/${s.slug}`
                 return (
                   <SidebarMenuItem key={s.slug}>
                     <SidebarMenuButton asChild isActive={pathname === href} tooltip={s.state}>
