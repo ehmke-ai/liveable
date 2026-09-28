@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 
 import { PopulationStackChart } from "@/components/population-stack-chart"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
+import { TexasCountyMap } from "@/components/tx-county-map"
 import {
   Card,
   CardContent,
@@ -24,7 +25,6 @@ import {
   POPULATION_GROUP_LABELS,
   POPULATION_LABEL_THRESHOLD,
   type PopulationGroup,
-  formatGdp,
   getStateBySlug,
   latestPopulation,
   stackPopulationHistory,
@@ -88,6 +88,19 @@ export default async function StatePage({
   const groups = Object.keys(POPULATION_GROUP_LABELS) as PopulationGroup[]
   const nonHispanicWhite = Math.round((population.european + (population.arab ?? 0)) * 10) / 10
 
+  // Snapshot card: same fold-below-threshold-into-Other logic as the ethnic group chart,
+  // but at 2% instead of POPULATION_LABEL_THRESHOLD (3%).
+  const SNAPSHOT_GROUP_THRESHOLD = 2
+  const snapshotGroups = groups
+    .filter((g) => (population[g] ?? 0) >= SNAPSHOT_GROUP_THRESHOLD)
+    .sort((a, b) => (population[b] ?? 0) - (population[a] ?? 0))
+  const foldedSnapshotGroups = groups.filter((g) => !snapshotGroups.includes(g))
+  const snapshotOther =
+    Math.round(
+      (population.other + foldedSnapshotGroups.reduce((sum, g) => sum + (population[g] ?? 0), 0)) *
+        10
+    ) / 10
+
   const comparison = us
     ? [
         { label: "Non-Hispanic White", state: `${nonHispanicWhite}%`, us: `${us.native}%`, color: COLORS.native },
@@ -108,18 +121,14 @@ export default async function StatePage({
       <header className="mb-7">
         <h1 className="sr-only">{state.state}</h1>
         <p className="page-sub">
-          U.S. state · {state.population.toFixed(1)} million residents
+          {state.population.toFixed(1)} million residents
         </p>
       </header>
 
       <Card className="border-border bg-card shadow-none">
-        <CardHeader className="pb-2">
-          <CardTitle>Snapshot</CardTitle>
-          <CardDescription>Current approximate figures</CardDescription>
-        </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-            {groups.map((g) => (
+            {snapshotGroups.map((g) => (
               <Stat
                 key={g}
                 label={POPULATION_GROUP_LABELS[g]}
@@ -127,6 +136,9 @@ export default async function StatePage({
                 color={g === "european" ? COLORS.native : undefined}
               />
             ))}
+            {snapshotOther >= SNAPSHOT_GROUP_THRESHOLD && (
+              <Stat label="Other" value={`${snapshotOther}%`} />
+            )}
             <Stat label="Foreign-born" value={`${state.foreignBorn}%`} />
             <Stat label="Catholic" value={`${state.catholic}%`} color={COLORS.catholic} />
             <Stat label="Protestant" value={`${state.protestant}%`} color={COLORS.protestant} />
@@ -137,7 +149,11 @@ export default async function StatePage({
               color={COLORS.medianAge}
             />
             <Stat label="Median age (all)" value={`${formatMedianAge(state.medianAgeAll)} yrs`} />
-            <Stat label="State GDP" value={formatGdp(state.gdp)} color={COLORS.marketCap} />
+            <Stat
+              label="Fishback benchmark"
+              value={`${state.thirtyMarriedHomeowner}%`}
+              color={COLORS.thirtyMarriedHomeowner}
+            />
           </dl>
         </CardContent>
       </Card>
@@ -188,7 +204,9 @@ export default async function StatePage({
       <header className="mt-12 mb-7">
         <h2 className="section-title">Population by ethnic group</h2>
         <p className="section-sub">
-          Share of the population from 1970 to 2025, from the Census Bureau. Groups under{" "}
+          Share of the population from {state.populationHistory[0].year} to{" "}
+          {state.populationHistory[state.populationHistory.length - 1].year}, from the Census
+          Bureau. Groups under{" "}
           {POPULATION_LABEL_THRESHOLD}% today are combined into Other on the chart; the table
           lists every group.
         </p>
@@ -246,7 +264,7 @@ export default async function StatePage({
 
       <Card className="border-border bg-card shadow-none">
         <CardContent>
-          <PoliticalLeanTrendChart data={state.politicalLeanHistory} hideSelector />
+          <PoliticalLeanTrendChart data={state.politicalLeanHistory} hideSelector hideWings />
           <Separator className="my-4" />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Swatch color={COLORS.leftOfCenter} label="Democratic (left of center)" />
@@ -254,6 +272,25 @@ export default async function StatePage({
           </div>
         </CardContent>
       </Card>
+
+      {state.countyDemographics && (
+        <>
+          <header className="mt-12 mb-7">
+            <h2 className="section-title">Non-Hispanic White share by county</h2>
+            <p className="section-sub">
+              White alone, not Hispanic or Latino, % of population across all {state.countyDemographics.length}{" "}
+              {state.state} counties. Hover a county to preview its figure, click to open its page — or browse
+              the full list below.
+            </p>
+          </header>
+
+          <Card className="border-border bg-card shadow-none">
+            <CardContent>
+              <TexasCountyMap state={state} />
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       <footer className="fine-print mt-12 border-t border-border pt-6">
         <h2 className="section-title mb-3">Sources</h2>
@@ -287,8 +324,10 @@ export default async function StatePage({
           other race&rdquo; responses to a specific race. Before 2000 the Census published
           Hispanic origin only against non-Hispanic White, so African includes Hispanic Black
           residents, and Arab, Indian, and East Asian cannot be separated (shown as &mdash; and
-          included in Other). The census did not tabulate Hispanic origin in 1960, so the series
-          starts in 1970, when it was asked of a 15% sample. The 2025 group splits use the 2024
+          included in Other). The census did not tabulate Hispanic origin at all in 1960;
+          Hispanic residents were classified as White, so a 1960 figure overstates non-Hispanic
+          White relative to 1970 onward, when Hispanic origin was asked of a 15% sample. The 2025
+          group splits use the 2024
           American Community Survey, the latest available. Decade points on the political
           chart use the nearest presidential election (1968, 1988, 2008, 2024); third-party
           candidates, such as George Wallace in 1968, are omitted, so the lines need not sum to
