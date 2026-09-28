@@ -98,11 +98,7 @@ export default async function CountryPage({
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
-      <header className="mb-7">
-        <h1 className="page-title">
-          {country.country}
-        </h1>
-      </header>
+      <h1 className="sr-only">{country.country}</h1>
 
       {!isUnitedStates && snapshotCard}
 

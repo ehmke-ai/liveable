@@ -64,7 +64,9 @@ export default function HomePage() {
 
       <Card className="border-border bg-card shadow-none">
         <CardContent className="pt-6">
-          <DemographicsBarChart />
+          <div className="hidden md:block">
+            <DemographicsBarChart />
+          </div>
           <Separator className="my-4" />
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Swatch color={COLORS.native} label="Native / European (approx.)" />

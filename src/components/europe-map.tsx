@@ -15,20 +15,22 @@ import { Button } from "@/components/ui/button"
 import {
   COLORS,
   demographicsByIso,
-  formatMarketCap,
   formatMedianAge,
   mapDemographicsData,
-  marketCapIntensity,
   maxAntiImmig,
-  maxMapMarketCap,
   maxMapMedianAge,
+  maxMapThirtyMarriedHomeowner,
+  maxMapWealthShareUnder30,
   medianAgeYouthIntensity,
   minMapMedianAge,
+  minMapThirtyMarriedHomeowner,
+  minMapWealthShareUnder30,
+  rangeIntensity,
   slugify,
   type CountryDemographics,
 } from "@/lib/demographics"
 
-type MapMetric = "antiImmig" | "native" | "marketCap" | "medianAge"
+type MapMetric = "antiImmig" | "native" | "medianAge" | "thirtyMarriedHomeowner" | "wealthShareUnder30"
 
 type CountryFeature = Feature<Geometry, { name: string }> & { id?: string | number }
 type Ring = number[][]
@@ -232,14 +234,6 @@ function fillFor(
     return `rgba(217, 120, 45, ${alpha})`
   }
 
-  if (metric === "marketCap") {
-    const t = marketCapIntensity(data.marketCap, maxMapMarketCap)
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(45, 184, 138, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(110, 220, 180, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(45, 184, 138, ${alpha})`
-  }
-
   if (metric === "medianAge") {
     const t = medianAgeYouthIntensity(
       data.medianAge,
@@ -250,6 +244,30 @@ function fillFor(
     if (selected) return `rgba(88, 160, 200, ${Math.min(1, alpha + 0.15)})`
     if (hovered) return `rgba(140, 200, 230, ${Math.min(1, alpha + 0.1)})`
     return `rgba(88, 160, 200, ${alpha})`
+  }
+
+  if (metric === "thirtyMarriedHomeowner") {
+    const t = rangeIntensity(
+      data.thirtyMarriedHomeowner,
+      minMapThirtyMarriedHomeowner,
+      maxMapThirtyMarriedHomeowner
+    )
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(139, 92, 246, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(180, 150, 250, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(139, 92, 246, ${alpha})`
+  }
+
+  if (metric === "wealthShareUnder30") {
+    const t = rangeIntensity(
+      data.wealthShareUnder30,
+      minMapWealthShareUnder30,
+      maxMapWealthShareUnder30
+    )
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(34, 197, 94, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(140, 230, 170, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(34, 197, 94, ${alpha})`
   }
 
   const t = data.native / 100
@@ -265,16 +283,18 @@ function fillFor(
 
 function metricLabel(data: CountryDemographics, metric: MapMetric): string {
   if (metric === "antiImmig") return `${data.antiImmig}%`
-  if (metric === "marketCap") return formatMarketCap(data.marketCap)
   if (metric === "medianAge") return `${formatMedianAge(data.medianAge)} yrs`
+  if (metric === "thirtyMarriedHomeowner") return `${data.thirtyMarriedHomeowner}%`
+  if (metric === "wealthShareUnder30") return `${data.wealthShareUnder30}%`
   return `${data.native}%`
 }
 
 function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): string {
   if (selected) {
     if (metric === "antiImmig") return "#f0b27a"
-    if (metric === "marketCap") return "#7eecc0"
     if (metric === "medianAge") return "#9ecce8"
+    if (metric === "thirtyMarriedHomeowner") return "#c4b5fd"
+    if (metric === "wealthShareUnder30") return "#86efac"
     return "var(--foreground)"
   }
   if (hovered) return "color-mix(in oklch, var(--foreground) 55%, var(--background))"
@@ -396,18 +416,26 @@ export function EuropeMap() {
           <Button
             type="button"
             size="sm"
-            variant={metric === "marketCap" ? "default" : "secondary"}
-            onClick={() => setMetric("marketCap")}
-          >
-            Market cap
-          </Button>
-          <Button
-            type="button"
-            size="sm"
             variant={metric === "medianAge" ? "default" : "secondary"}
             onClick={() => setMetric("medianAge")}
           >
             Native median age
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={metric === "thirtyMarriedHomeowner" ? "default" : "secondary"}
+            onClick={() => setMetric("thirtyMarriedHomeowner")}
+          >
+            Fishback benchmark
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={metric === "wealthShareUnder30" ? "default" : "secondary"}
+            onClick={() => setMetric("wealthShareUnder30")}
+          >
+            Wealth share (30 &amp; under)
           </Button>
         </div>
       </div>
@@ -490,18 +518,25 @@ export function EuropeMap() {
                         Opposition{" "}
                         <span style={{ color: COLORS.anti }}>{hovered.antiImmig}%</span>
                       </>
-                    ) : metric === "marketCap" ? (
-                      <>
-                        Market cap{" "}
-                        <span style={{ color: COLORS.marketCap }}>
-                          {formatMarketCap(hovered.marketCap)}
-                        </span>
-                      </>
                     ) : metric === "medianAge" ? (
                       <>
                         Native median age{" "}
                         <span style={{ color: COLORS.medianAge }}>
                           {formatMedianAge(hovered.medianAge)} yrs
+                        </span>
+                      </>
+                    ) : metric === "thirtyMarriedHomeowner" ? (
+                      <>
+                        30, married &amp; homeowner{" "}
+                        <span style={{ color: COLORS.thirtyMarriedHomeowner }}>
+                          {hovered.thirtyMarriedHomeowner}%
+                        </span>
+                      </>
+                    ) : metric === "wealthShareUnder30" ? (
+                      <>
+                        Wealth share, 30 &amp; under{" "}
+                        <span style={{ color: COLORS.wealthShareUnder30 }}>
+                          {hovered.wealthShareUnder30}%
                         </span>
                       </>
                     ) : (
@@ -551,13 +586,13 @@ export function EuropeMap() {
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-base font-semibold text-foreground">
-                  <Link href={`/country/${slugify(detail.country)}`} className="hover:underline">
+                  <Link href={`/${slugify(detail.country)}`} className="hover:underline">
                     {detail.country}
                   </Link>
                 </h3>
                 <div className="flex items-center gap-3">
                   <Link
-                    href={`/country/${slugify(detail.country)}`}
+                    href={`/${slugify(detail.country)}`}
                     className="text-xs text-muted-foreground underline-offset-2 hover:underline"
                   >
                     Full profile →
@@ -584,14 +619,19 @@ export function EuropeMap() {
                   color={COLORS.anti}
                 />
                 <Stat
-                  label="Market cap"
-                  value={formatMarketCap(detail.marketCap)}
-                  color={COLORS.marketCap}
-                />
-                <Stat
                   label="Native median age"
                   value={`${formatMedianAge(detail.medianAge)} yrs`}
                   color={COLORS.medianAge}
+                />
+                <Stat
+                  label="30, married & homeowner"
+                  value={`${detail.thirtyMarriedHomeowner}%`}
+                  color={COLORS.thirtyMarriedHomeowner}
+                />
+                <Stat
+                  label="Wealth share, 30 & under"
+                  value={`${detail.wealthShareUnder30}%`}
+                  color={COLORS.wealthShareUnder30}
                 />
               </dl>
             </div>
@@ -611,15 +651,32 @@ export function EuropeMap() {
               <LegendSwatch color="rgba(217,120,45,0.35)" label="Lower opposition" />
               <LegendSwatch color="rgba(217,120,45,1)" label="Higher opposition" />
             </>
-          ) : metric === "marketCap" ? (
-            <>
-              <LegendSwatch color="rgba(45,184,138,0.3)" label="Smaller market" />
-              <LegendSwatch color="rgba(45,184,138,1)" label="Larger market" />
-            </>
           ) : metric === "medianAge" ? (
             <>
               <LegendSwatch color="rgba(88,160,200,0.3)" label="Older native pop." />
               <LegendSwatch color="rgba(88,160,200,1)" label="Younger native pop." />
+            </>
+          ) : metric === "thirtyMarriedHomeowner" ? (
+            <>
+              <LegendSwatch
+                color="rgba(139,92,246,0.3)"
+                label={`Lower share (${minMapThirtyMarriedHomeowner}%)`}
+              />
+              <LegendSwatch
+                color="rgba(139,92,246,1)"
+                label={`Higher share (${maxMapThirtyMarriedHomeowner}%)`}
+              />
+            </>
+          ) : metric === "wealthShareUnder30" ? (
+            <>
+              <LegendSwatch
+                color="rgba(34,197,94,0.3)"
+                label={`Lower share (${minMapWealthShareUnder30}%)`}
+              />
+              <LegendSwatch
+                color="rgba(34,197,94,1)"
+                label={`Higher share (${maxMapWealthShareUnder30}%)`}
+              />
             </>
           ) : (
             <>

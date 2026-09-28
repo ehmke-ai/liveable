@@ -12,12 +12,14 @@ import { COLORS } from "@/lib/demographics"
 import {
   ENFORCEMENT_TIER_LABELS,
   enforcementIntensity,
-  formatGdp,
-  gdpIntensity,
   maxStateAntiImmig,
   maxStateNative,
+  maxStateThirtyMarriedHomeowner,
+  maxStateWealthShareUnder30,
   minStateAntiImmig,
   minStateNative,
+  minStateThirtyMarriedHomeowner,
+  minStateWealthShareUnder30,
   rangeIntensity,
   stateByAbbr,
   stateMapByAbbr,
@@ -25,7 +27,12 @@ import {
   type StateMapMetrics,
 } from "@/lib/states"
 
-type MapMetric = "antiImmig" | "enforcement" | "native" | "gdp"
+type MapMetric =
+  | "antiImmig"
+  | "enforcement"
+  | "native"
+  | "thirtyMarriedHomeowner"
+  | "wealthShareUnder30"
 
 type StateFeature = Feature<Geometry, { name: string }> & { id?: string | number }
 
@@ -117,12 +124,28 @@ function fillFor(
     return `rgba(194, 65, 91, ${alpha})`
   }
 
-  if (metric === "gdp") {
-    const t = gdpIntensity(data.gdp)
+  if (metric === "thirtyMarriedHomeowner") {
+    const t = rangeIntensity(
+      data.thirtyMarriedHomeowner,
+      minStateThirtyMarriedHomeowner,
+      maxStateThirtyMarriedHomeowner
+    )
     const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(45, 184, 138, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(110, 220, 180, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(45, 184, 138, ${alpha})`
+    if (selected) return `rgba(139, 92, 246, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(180, 150, 250, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(139, 92, 246, ${alpha})`
+  }
+
+  if (metric === "wealthShareUnder30") {
+    const t = rangeIntensity(
+      data.wealthShareUnder30,
+      minStateWealthShareUnder30,
+      maxStateWealthShareUnder30
+    )
+    const alpha = 0.3 + t * 0.7
+    if (selected) return `rgba(34, 197, 94, ${Math.min(1, alpha + 0.15)})`
+    if (hovered) return `rgba(140, 230, 170, ${Math.min(1, alpha + 0.1)})`
+    return `rgba(34, 197, 94, ${alpha})`
   }
 
   const t = rangeIntensity(data.native, minStateNative, maxStateNative)
@@ -139,7 +162,8 @@ function fillFor(
 function metricLabel(data: StateMapMetrics, metric: MapMetric): string {
   if (metric === "antiImmig") return data.antiImmig == null ? "no data" : `${data.antiImmig}%`
   if (metric === "enforcement") return enforcementLabel(data)
-  if (metric === "gdp") return formatGdp(data.gdp)
+  if (metric === "thirtyMarriedHomeowner") return `${data.thirtyMarriedHomeowner}%`
+  if (metric === "wealthShareUnder30") return `${data.wealthShareUnder30}%`
   return `${data.native}%`
 }
 
@@ -151,7 +175,8 @@ function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): stri
   if (selected) {
     if (metric === "antiImmig") return "#f0b27a"
     if (metric === "enforcement") return "#e8899c"
-    if (metric === "gdp") return "#7eecc0"
+    if (metric === "thirtyMarriedHomeowner") return "#c4b5fd"
+    if (metric === "wealthShareUnder30") return "#86efac"
     return "var(--foreground)"
   }
   if (hovered) return "color-mix(in oklch, var(--foreground) 55%, var(--background))"
@@ -249,10 +274,18 @@ export function UsMap() {
         <Button
           type="button"
           size="sm"
-          variant={metric === "gdp" ? "default" : "secondary"}
-          onClick={() => setMetric("gdp")}
+          variant={metric === "thirtyMarriedHomeowner" ? "default" : "secondary"}
+          onClick={() => setMetric("thirtyMarriedHomeowner")}
         >
-          GDP
+          Fishback benchmark
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={metric === "wealthShareUnder30" ? "default" : "secondary"}
+          onClick={() => setMetric("wealthShareUnder30")}
+        >
+          Wealth share (30 &amp; under)
         </Button>
       </div>
 
@@ -367,10 +400,19 @@ export function UsMap() {
                         </span>{" "}
                         · ILRC {hovered.enforcementScore.toFixed(1)}
                       </>
-                    ) : metric === "gdp" ? (
+                    ) : metric === "thirtyMarriedHomeowner" ? (
                       <>
-                        GDP{" "}
-                        <span style={{ color: COLORS.marketCap }}>{formatGdp(hovered.gdp)}</span>
+                        30, married &amp; homeowner{" "}
+                        <span style={{ color: COLORS.thirtyMarriedHomeowner }}>
+                          {hovered.thirtyMarriedHomeowner}%
+                        </span>
+                      </>
+                    ) : metric === "wealthShareUnder30" ? (
+                      <>
+                        Wealth share, 30 &amp; under{" "}
+                        <span style={{ color: COLORS.wealthShareUnder30 }}>
+                          {hovered.wealthShareUnder30}%
+                        </span>
                       </>
                     ) : (
                       <>
@@ -462,7 +504,16 @@ export function UsMap() {
                   color={COLORS.enforcement}
                 />
                 <Stat label="Native / European" value={`${detail.native}%`} color={COLORS.native} />
-                <Stat label="GDP" value={formatGdp(detail.gdp)} color={COLORS.marketCap} />
+                <Stat
+                  label="30, married & homeowner"
+                  value={`${detail.thirtyMarriedHomeowner}%`}
+                  color={COLORS.thirtyMarriedHomeowner}
+                />
+                <Stat
+                  label="Wealth share, 30 & under"
+                  value={`${detail.wealthShareUnder30}%`}
+                  color={COLORS.wealthShareUnder30}
+                />
               </dl>
             </div>
           ) : (
@@ -485,10 +536,27 @@ export function UsMap() {
               <LegendSwatch color="rgba(194,65,91,0.3)" label="Sanctuary protections" />
               <LegendSwatch color="rgba(194,65,91,1)" label="Heavy ICE cooperation" />
             </>
-          ) : metric === "gdp" ? (
+          ) : metric === "thirtyMarriedHomeowner" ? (
             <>
-              <LegendSwatch color="rgba(45,184,138,0.3)" label="Smaller economy" />
-              <LegendSwatch color="rgba(45,184,138,1)" label="Larger economy" />
+              <LegendSwatch
+                color="rgba(139,92,246,0.3)"
+                label={`Lower share (${minStateThirtyMarriedHomeowner}%)`}
+              />
+              <LegendSwatch
+                color="rgba(139,92,246,1)"
+                label={`Higher share (${maxStateThirtyMarriedHomeowner}%)`}
+              />
+            </>
+          ) : metric === "wealthShareUnder30" ? (
+            <>
+              <LegendSwatch
+                color="rgba(34,197,94,0.3)"
+                label={`Lower share (${minStateWealthShareUnder30}%)`}
+              />
+              <LegendSwatch
+                color="rgba(34,197,94,1)"
+                label={`Higher share (${maxStateWealthShareUnder30}%)`}
+              />
             </>
           ) : (
             <>
@@ -511,8 +579,12 @@ export function UsMap() {
         on ILRC&apos;s 1–5 scale (1 = most enforcement, 5 = most protective; ILRC State Map on
         Immigration Enforcement, July 2026).
         Native / European: non-Hispanic White minus Arab ancestry (Census Vintage 2025, ACS
-        2024). GDP: nominal 2025 state GDP (BEA), log-scaled. Colors are scaled to the range
-        across states.
+        2024). 30, married &amp; homeowner: among 30-year-olds, share who are married with
+        spouse present and own their home, estimated from ACS 2024 1-year cross-tabulations by
+        age, marital status, and tenure. Wealth share (30 &amp; under): estimated share of total
+        household net wealth held by residents aged 30 and under, derived from the Fishback
+        benchmark and Federal Reserve Distributional Financial Accounts under-35 wealth shares.
+        Colors are scaled to the range across states.
       </p>
     </div>
   )

@@ -106,7 +106,7 @@ export default async function StatePage({
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
       <header className="mb-7">
-        <h1 className="page-title">{state.state}</h1>
+        <h1 className="sr-only">{state.state}</h1>
         <p className="page-sub">
           U.S. state · {state.population.toFixed(1)} million residents
         </p>

@@ -71,7 +71,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {sortedCountries.map((d) => {
-                const href = `/country/${slugify(d.country)}`
+                const href = `/${slugify(d.country)}`
                 return (
                   <SidebarMenuItem key={d.country}>
                     <SidebarMenuButton asChild isActive={pathname === href} tooltip={d.country}>

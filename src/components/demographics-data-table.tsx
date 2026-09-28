@@ -78,7 +78,7 @@ const columns: ColumnDef<CountryDemographics>[] = [
     enableSorting: false,
     cell: ({ row }) => (
       <Link
-        href={`/country/${slugify(row.getValue("country"))}`}
+        href={`/${slugify(row.getValue("country"))}`}
         className="font-medium hover:underline"
       >
         {row.getValue("country")}

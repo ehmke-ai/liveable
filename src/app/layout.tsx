@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import { Crimson_Pro, Crimson_Text, Geist_Mono, Open_Sans } from "next/font/google"
-import Link from "next/link"
+import Script from "next/script"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -52,7 +53,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}})()`,
           }}
@@ -65,9 +68,7 @@ export default function RootLayout({
             <SidebarInset>
               <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur">
                 <SidebarTrigger />
-                <Link href="/" className="text-sm font-semibold md:hidden">
-                  researchzoomer.com
-                </Link>
+                <PageBreadcrumb />
                 <div className="ml-auto">
                   <ThemeToggle />
                 </div>

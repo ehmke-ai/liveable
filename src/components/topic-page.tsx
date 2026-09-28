@@ -39,7 +39,7 @@ export function TopicPage({
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
       <header className="mb-7">
-        <h1 className="page-title">{title}</h1>
+        <h1 className="sr-only">{title}</h1>
         <p className="page-sub">
           {description}
         </p>
@@ -99,7 +99,7 @@ export function RankingTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="font-medium">
-                  <Link href={`/country/${slugify(row.country)}`} className="hover:underline">
+                  <Link href={`/${slugify(row.country)}`} className="hover:underline">
                     {row.country}
                   </Link>
                 </TableCell>

@@ -15,22 +15,38 @@ export type CountryDemographics = {
    * United States: Census non-Hispanic White alone.
    */
   medianAge: number
+  /**
+   * Share of 30-year-olds who are married with spouse present and own their home
+   * ("Fishback benchmark" — see us-map.tsx for the US state-level equivalent).
+   * Europe: Eurostat EU-SILC household composition & tenure cross-tabs by age.
+   * United States: ACS 1-year cross-tabulations by age, marital status, and tenure.
+   */
+  thirtyMarriedHomeowner: number
+  /**
+   * Share of total household net wealth held by people aged 30 and under.
+   * Europe: ECB Household Finance and Consumption Survey age-group wealth shares
+   * (household head cross-tabs), interpolated down from the published under-35 bracket.
+   * United States: Federal Reserve Survey of Consumer Finances, Distributional
+   * Financial Accounts, share of total net worth held by households with head under 35,
+   * scaled down to approximate the under-30 share.
+   */
+  wealthShareUnder30: number
   /** When false, included in charts/tables but omitted from the Europe map */
   onMap?: boolean
 }
 
 export const demographicsData: CountryDemographics[] = [
-  { country: "Germany", isoNumeric: "276", native: 80, catholic: 24, protestant: 22, orthodox: 3, antiImmig: 34, marketCap: 3036, medianAge: 45.9 },
-  { country: "Austria", isoNumeric: "040", native: 81, catholic: 50, protestant: 3, orthodox: 5, antiImmig: 57, marketCap: 224.5, medianAge: 44.4 },
-  { country: "Switzerland", isoNumeric: "756", native: 75, catholic: 30, protestant: 19, orthodox: 2, antiImmig: 31, marketCap: 1790, medianAge: 41.3 },
-  { country: "Netherlands", isoNumeric: "528", native: 75, catholic: 17, protestant: 14, orthodox: 1, antiImmig: 39, marketCap: 2120, medianAge: 43.0 },
-  { country: "Norway", isoNumeric: "578", native: 85, catholic: 3, protestant: 62, orthodox: 1, antiImmig: 16, marketCap: 515, medianAge: 41.1 },
-  { country: "Denmark", isoNumeric: "208", native: 84, catholic: 1, protestant: 70, orthodox: 1, antiImmig: 40, marketCap: 650, medianAge: 43.1 },
-  { country: "Sweden", isoNumeric: "752", native: 78, catholic: 1, protestant: 51, orthodox: 2, antiImmig: 13, marketCap: 1410, medianAge: 40.7 },
-  { country: "Poland", isoNumeric: "616", native: 97, catholic: 71, protestant: 1, orthodox: 1, antiImmig: 49, marketCap: 292, medianAge: 43.6 },
-  { country: "Italy", isoNumeric: "380", native: 91, catholic: 61, protestant: 1, orthodox: 3, antiImmig: 41, marketCap: 950, medianAge: 50.1 },
-  { country: "France", isoNumeric: "250", native: 80, catholic: 47, protestant: 2, orthodox: 1, antiImmig: 32, marketCap: 3450, medianAge: 41.9 },
-  { country: "Ireland", isoNumeric: "372", native: 77, catholic: 69, protestant: 3, orthodox: 2, antiImmig: 40, marketCap: 298, medianAge: 40.0 },
+  { country: "Germany", isoNumeric: "276", native: 80, catholic: 24, protestant: 22, orthodox: 3, antiImmig: 34, marketCap: 3036, medianAge: 45.9, thirtyMarriedHomeowner: 24, wealthShareUnder30: 3 },
+  { country: "Austria", isoNumeric: "040", native: 81, catholic: 50, protestant: 3, orthodox: 5, antiImmig: 57, marketCap: 224.5, medianAge: 44.4, thirtyMarriedHomeowner: 29, wealthShareUnder30: 4 },
+  { country: "Switzerland", isoNumeric: "756", native: 75, catholic: 30, protestant: 19, orthodox: 2, antiImmig: 31, marketCap: 1790, medianAge: 41.3, thirtyMarriedHomeowner: 19, wealthShareUnder30: 3 },
+  { country: "Netherlands", isoNumeric: "528", native: 75, catholic: 17, protestant: 14, orthodox: 1, antiImmig: 39, marketCap: 2120, medianAge: 43.0, thirtyMarriedHomeowner: 27, wealthShareUnder30: 4 },
+  { country: "Norway", isoNumeric: "578", native: 85, catholic: 3, protestant: 62, orthodox: 1, antiImmig: 16, marketCap: 515, medianAge: 41.1, thirtyMarriedHomeowner: 16, wealthShareUnder30: 6 },
+  { country: "Denmark", isoNumeric: "208", native: 84, catholic: 1, protestant: 70, orthodox: 1, antiImmig: 40, marketCap: 650, medianAge: 43.1, thirtyMarriedHomeowner: 14, wealthShareUnder30: 4 },
+  { country: "Sweden", isoNumeric: "752", native: 78, catholic: 1, protestant: 51, orthodox: 2, antiImmig: 13, marketCap: 1410, medianAge: 40.7, thirtyMarriedHomeowner: 13, wealthShareUnder30: 5 },
+  { country: "Poland", isoNumeric: "616", native: 97, catholic: 71, protestant: 1, orthodox: 1, antiImmig: 49, marketCap: 292, medianAge: 43.6, thirtyMarriedHomeowner: 39, wealthShareUnder30: 7 },
+  { country: "Italy", isoNumeric: "380", native: 91, catholic: 61, protestant: 1, orthodox: 3, antiImmig: 41, marketCap: 950, medianAge: 50.1, thirtyMarriedHomeowner: 22, wealthShareUnder30: 2 },
+  { country: "France", isoNumeric: "250", native: 80, catholic: 47, protestant: 2, orthodox: 1, antiImmig: 32, marketCap: 3450, medianAge: 41.9, thirtyMarriedHomeowner: 25, wealthShareUnder30: 4 },
+  { country: "Ireland", isoNumeric: "372", native: 77, catholic: 69, protestant: 3, orthodox: 2, antiImmig: 40, marketCap: 298, medianAge: 40.0, thirtyMarriedHomeowner: 21, wealthShareUnder30: 5 },
   {
     country: "United States",
     isoNumeric: "840",
@@ -41,6 +57,8 @@ export const demographicsData: CountryDemographics[] = [
     antiImmig: 30,
     marketCap: 79470,
     medianAge: 44.2,
+    thirtyMarriedHomeowner: 28,
+    wealthShareUnder30: 5,
     onMap: false,
   },
 ]
@@ -100,6 +118,34 @@ export const maxMedianAge = Math.max(...rankedByMedianAge.map((d) => d.medianAge
 
 export const minMapMedianAge = Math.min(...mapDemographicsData.map((d) => d.medianAge))
 export const maxMapMedianAge = Math.max(...mapDemographicsData.map((d) => d.medianAge))
+
+export const rankedByThirtyMarriedHomeowner = [...demographicsData].sort(
+  (a, b) => b.thirtyMarriedHomeowner - a.thirtyMarriedHomeowner
+)
+
+export const minMapThirtyMarriedHomeowner = Math.min(
+  ...mapDemographicsData.map((d) => d.thirtyMarriedHomeowner)
+)
+export const maxMapThirtyMarriedHomeowner = Math.max(
+  ...mapDemographicsData.map((d) => d.thirtyMarriedHomeowner)
+)
+
+export const rankedByWealthShareUnder30 = [...demographicsData].sort(
+  (a, b) => b.wealthShareUnder30 - a.wealthShareUnder30
+)
+
+export const minMapWealthShareUnder30 = Math.min(
+  ...mapDemographicsData.map((d) => d.wealthShareUnder30)
+)
+export const maxMapWealthShareUnder30 = Math.max(
+  ...mapDemographicsData.map((d) => d.wealthShareUnder30)
+)
+
+/** Linear position of `value` within [min, max], clamped to [0, 1] */
+export function rangeIntensity(value: number, min: number, max: number): number {
+  if (max <= min) return 1
+  return Math.min(1, Math.max(0, (value - min) / (max - min)))
+}
 
 /** Format market cap stored in billions of USD */
 export function formatMarketCap(billions: number): string {
@@ -466,6 +512,25 @@ export function getCountryRankings(country: string): CountryRanking[] {
       )} yrs`,
       color: COLORS.medianAge,
     },
+    {
+      label: "Fishback benchmark (30, married & homeowner)",
+      rank: rankedByThirtyMarriedHomeowner.findIndex((d) => d.country === country) + 1,
+      total: rankedByThirtyMarriedHomeowner.length,
+      value: `${
+        rankedByThirtyMarriedHomeowner.find((d) => d.country === country)
+          ?.thirtyMarriedHomeowner
+      }%`,
+      color: COLORS.thirtyMarriedHomeowner,
+    },
+    {
+      label: "Wealth share held by age 30 and under",
+      rank: rankedByWealthShareUnder30.findIndex((d) => d.country === country) + 1,
+      total: rankedByWealthShareUnder30.length,
+      value: `${
+        rankedByWealthShareUnder30.find((d) => d.country === country)?.wealthShareUnder30
+      }%`,
+      color: COLORS.wealthShareUnder30,
+    },
   ]
 }
 
@@ -482,4 +547,6 @@ export const COLORS = {
   leftOfCenter: "#7dd3fc",
   rightOfCenter: "#fca5a5",
   rightWing: "#b91c1c",
+  thirtyMarriedHomeowner: "#8b5cf6",
+  wealthShareUnder30: "#22c55e",
 } as const
