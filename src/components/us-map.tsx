@@ -2,7 +2,7 @@
 
 import { geoPath, type GeoPermissibleObjects } from "d3-geo"
 import Link from "next/link"
-import { useEffect, useMemo, useState, type MouseEvent } from "react"
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react"
 import { feature } from "topojson-client"
 import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson"
 import type { GeometryCollection, Topology } from "topojson-specification"
@@ -183,7 +183,11 @@ function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): stri
   return "var(--background)"
 }
 
-export function UsMap() {
+/**
+ * `countyMap` replaces the state map while Demographics is selected (the county-level
+ * UsCountyMap). It stays mounted when hidden so its year slider keeps its position.
+ */
+export function UsMap({ countyMap }: { countyMap: ReactNode }) {
   const [features, setFeatures] = useState<StateFeature[]>([])
   const [metric, setMetric] = useState<MapMetric>("native")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -243,6 +247,7 @@ export function UsMap() {
   const selected = selectedId ? stateMapByAbbr[FIPS_TO_ABBR[selectedId]] : undefined
   const detail = selected ?? hovered
   const detailPage = detail ? stateNavByAbbr[detail.abbr] : undefined
+  const showCounties = metric === "native"
 
   return (
     <div className="space-y-4">
@@ -253,7 +258,7 @@ export function UsMap() {
           variant={metric === "native" ? "default" : "secondary"}
           onClick={() => setMetric("native")}
         >
-          Native / European
+          Demographics
         </Button>
         <Button
           type="button"
@@ -289,7 +294,18 @@ export function UsMap() {
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+      <div className={showCounties ? undefined : "hidden"}>
+        {/* Same columns as the state view, with an empty stand-in for the small-state list so
+            the map renders at the same size in every view */}
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          {countyMap}
+          <div className="hidden sm:block sm:w-32" aria-hidden />
+        </div>
+      </div>
+
+      <div
+        className={`grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start ${showCounties ? "hidden" : ""}`}
+      >
         <div className="relative">
           {loading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
@@ -458,7 +474,9 @@ export function UsMap() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
+      <div
+        className={`grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start ${showCounties ? "hidden" : ""}`}
+      >
         <div className="rounded-lg border border-border bg-card/40 px-4 py-3 text-sm">
           {detail ? (
             <div className="space-y-2">
@@ -578,13 +596,22 @@ export function UsMap() {
         information sharing, anti-sanctuary mandates, and state immigration crimes, averaged
         on ILRC&apos;s 1–5 scale (1 = most enforcement, 5 = most protective; ILRC State Map on
         Immigration Enforcement, July 2026).
-        Native / European: non-Hispanic White minus Arab ancestry (Census Vintage 2025, ACS
-        2024). 30, married &amp; homeowner: among 30-year-olds, share who are married with
+        Demographics: county shares of the same groups as the state ethnic chart — European
+        (non-Hispanic White minus Arab ancestry), Hispanic, African (non-Hispanic Black), Indian,
+        East Asian, Arab, and Other (Census county estimates for 1990; decennial census and
+        ancestry tables for 2000 and 2010; ACS 2016–2020 for 2020; Census Vintage 2025
+        estimates with ACS 2020–2024 Asian-group and ancestry shares for 2025). The 1990 county data has no
+        Indian, East Asian, or Arab figures (they are counted in Other and European that year),
+        so a side made only of those groups shows no data for 1990. In 2025 Connecticut is
+        shown by its nine planning regions, which replaced its counties in 2022 and are how the
+        Census now reports it. Each
+        county takes the color of whichever chosen side is largest, deeper the wider its lead
+        over the next side. 30, married &amp; homeowner: among 30-year-olds, share who are married with
         spouse present and own their home, estimated from ACS 2024 1-year cross-tabulations by
         age, marital status, and tenure. Wealth share (30 &amp; under): estimated share of total
         household net wealth held by residents aged 30 and under, derived from the Fishback
         benchmark and Federal Reserve Distributional Financial Accounts under-35 wealth shares.
-        Colors are scaled to the range across states.
+        State-level colors are scaled to the range across states.
       </p>
     </div>
   )

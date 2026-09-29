@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 
 import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
+import { UsCountyMap, type UsCountyRow } from "@/components/us-county-map"
 import { UsMap } from "@/components/us-map"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -22,6 +23,23 @@ import {
   getCountryRankings,
   slugify,
 } from "@/lib/demographics"
+import { COUNTY_HISTORY_YEARS } from "@/lib/county-history"
+import { getCounties, statesData } from "@/lib/state-data"
+import { countyLabel } from "@/lib/states"
+
+// County labels and state abbreviations (keyed by state FIPS) for the Demographics map's
+// tooltip; the figures themselves load client-side from county-history.json
+function usCountyMapData(): { counties: UsCountyRow[]; states: Record<string, string> } {
+  const counties: UsCountyRow[] = []
+  const states: Record<string, string> = {}
+  for (const state of statesData) {
+    const stateCounties = getCounties(state)
+    if (!stateCounties.length) continue
+    states[stateCounties[0].fips.slice(0, 2)] = state.abbr
+    for (const c of stateCounties) counties.push([c.fips, countyLabel(c)])
+  }
+  return { counties, states }
+}
 
 export function generateStaticParams() {
   return demographicsData.map((d) => ({ slug: slugify(d.country) }))
@@ -105,7 +123,9 @@ export default async function CountryPage({
       {isUnitedStates && (
         <>
 
-          <UsMap />
+          <UsMap
+            countyMap={<UsCountyMap {...usCountyMapData()} years={COUNTY_HISTORY_YEARS} />}
+          />
 
           <header className="mt-12 mb-7">
             <h2 className="section-title">Snapshot</h2>

@@ -17,35 +17,47 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
+import { YearSlider } from "@/components/year-slider"
+import {
+  COUNTY_HISTORY_URL,
+  CT_FIPS,
+  foldedBreakdown,
+  type CountyHistory,
+  type CountyValues,
+} from "@/lib/county-history"
 import {
   countyGeoUrl,
   countyLabel,
   countySlug,
-  foldedCountyBreakdown,
   rangeIntensity,
   type CountyDemographics,
   type StateDemographics,
 } from "@/lib/states"
 
 type CountyFeature = Feature<Geometry, { name: string }> & { id?: string | number }
+type CountiesTopology = Topology<{ counties: GeometryCollection }>
+
+// Connecticut's planning regions, unprojected like the state county files, drawn in place of
+// its old counties for years whose data is keyed by region (2025)
+const CT_REGIONS_URL = "/geo/ct-planning-regions-10m.json"
 
 const WIDTH = 720
 const HEIGHT = 720
 const PAD = 16
 
 function fillFor(
-  data: CountyDemographics | undefined,
+  values: CountyValues | undefined,
   min: number,
   max: number,
   hovered: boolean
 ) {
-  if (!data) {
+  if (!values) {
     return hovered
       ? "color-mix(in oklch, var(--foreground) 10%, var(--border))"
       : "var(--border)"
   }
 
-  const t = rangeIntensity(data.nonHispanicWhitePct, min, max)
+  const t = rangeIntensity(values[0], min, max)
   const pct = Math.round(15 + t * 85)
   if (hovered) {
     return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 8)}%, var(--muted))`
@@ -72,13 +84,19 @@ function groupByLetter(counties: CountyDemographics[]) {
 export function StateCountyMap({
   state,
   counties: data,
+  years,
 }: {
   state: StateDemographics
   counties: CountyDemographics[]
+  /** Slider years, oldest first; each must be a key of county-history.json */
+  years: number[]
 }) {
   const router = useRouter()
 
   const [features, setFeatures] = useState<CountyFeature[]>([])
+  const [ctRegions, setCtRegions] = useState<CountyFeature[]>([])
+  const [history, setHistory] = useState<CountyHistory | null>(null)
+  const [year, setYear] = useState(years[years.length - 1])
   const [hoveredFips, setHoveredFips] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -96,8 +114,17 @@ export function StateCountyMap({
     [sortedCounties]
   )
   const countyGroups = useMemo(() => groupByLetter(sortedCounties), [sortedCounties])
-  const min = useMemo(() => Math.min(...data.map((c) => c.nonHispanicWhitePct)), [data])
-  const max = useMemo(() => Math.max(...data.map((c) => c.nonHispanicWhitePct)), [data])
+  const stateFips = data[0]?.fips.slice(0, 2)
+  const yearValues = useMemo(() => history?.[year] ?? {}, [history, year])
+
+  // European share range over this state's counties in every year, so a shade means the same
+  // share anywhere on the slider
+  const [min, max] = useMemo(() => {
+    const shares = Object.values(history ?? {}).flatMap((values) =>
+      Object.entries(values).flatMap(([fips, v]) => (fips.startsWith(stateFips) ? [v[0]] : []))
+    )
+    return shares.length ? [Math.min(...shares), Math.max(...shares)] : [0, 100]
+  }, [history, stateFips])
 
   function goToCounty(county: CountyDemographics) {
     router.push(`/united-states/${state.slug}/${countySlug(county.name)}`)
@@ -115,15 +142,25 @@ export function StateCountyMap({
 
   useEffect(() => {
     let cancelled = false
-    fetch(countyGeoUrl(state))
-      .then((r) => r.json())
-      .then((topology: Topology<{ counties: GeometryCollection }>) => {
+    const toFeatures = (topology: CountiesTopology) =>
+      (feature(topology, topology.objects.counties) as FeatureCollection<Geometry, { name: string }>)
+        .features as CountyFeature[]
+    Promise.all([
+      fetch(countyGeoUrl(state)).then((r) => r.json() as Promise<CountiesTopology>),
+      fetch(COUNTY_HISTORY_URL)
+        .then((r) => r.json() as Promise<CountyHistory>)
+        .catch(() => null),
+      stateFips === CT_FIPS
+        ? fetch(CT_REGIONS_URL)
+            .then((r) => r.json() as Promise<CountiesTopology>)
+            .catch(() => null)
+        : null,
+    ])
+      .then(([topology, countyHistory, ctTopology]) => {
         if (cancelled) return
-        const counties = feature(
-          topology,
-          topology.objects.counties
-        ) as FeatureCollection<Geometry, { name: string }>
-        setFeatures(counties.features as CountyFeature[])
+        setFeatures(toFeatures(topology))
+        setHistory(countyHistory)
+        if (ctTopology) setCtRegions(toFeatures(ctTopology))
       })
       .catch(() => {
         if (!cancelled) setFeatures([])
@@ -134,7 +171,7 @@ export function StateCountyMap({
     return () => {
       cancelled = true
     }
-  }, [state])
+  }, [state, stateFips])
 
   const collection = useMemo(
     () => ({ type: "FeatureCollection" as const, features }),
@@ -166,16 +203,25 @@ export function StateCountyMap({
     return `${x0 - PAD} ${y0 - PAD} ${x1 - x0 + 2 * PAD} ${y1 - y0 + 2 * PAD}`
   }, [collection, features.length, path])
 
+  // The projection stays fitted to the counties, so swapping in Connecticut's regions (which
+  // cover the same ground) doesn't shift the map
+  const useCtRegions = ctRegions.some((f) => yearValues[String(f.id)])
+  const shownFeatures = useCtRegions ? ctRegions : features
+
   const orderedFeatures = useMemo(() => {
-    if (!hoveredFips) return features
-    return [...features].sort((a, b) => {
+    if (!hoveredFips) return shownFeatures
+    return [...shownFeatures].sort((a, b) => {
       const aBoost = String(a.id) === hoveredFips ? 1 : 0
       const bBoost = String(b.id) === hoveredFips ? 1 : 0
       return aBoost - bBoost
     })
-  }, [features, hoveredFips])
+  }, [shownFeatures, hoveredFips])
 
-  const hovered = hoveredFips ? byFips[hoveredFips] : undefined
+  const hoveredFeature = hoveredFips
+    ? shownFeatures.find((f) => String(f.id) === hoveredFips)
+    : undefined
+  const hoveredCounty = hoveredFips ? byFips[hoveredFips] : undefined
+  const hoveredValues = hoveredFips ? yearValues[hoveredFips] : undefined
 
   return (
     <div className="space-y-3">
@@ -189,11 +235,12 @@ export function StateCountyMap({
           viewBox={viewBox}
           className="h-auto w-full touch-pan-y"
           role="img"
-          aria-label={`Interactive map of ${state.state} counties showing non-Hispanic White population share`}
+          aria-label={`Interactive map of ${state.state} counties showing European population share in ${year}`}
         >
           {orderedFeatures.map((f) => {
             const fips = String(f.id)
             const county = byFips[fips]
+            const values = yearValues[fips]
             const isHovered = hoveredFips === fips
             const d = path(f as GeoPermissibleObjects)
             if (!d) return null
@@ -210,7 +257,7 @@ export function StateCountyMap({
               <path
                 key={fips || f.properties.name}
                 d={d}
-                fill={fillFor(county, min, max, isHovered)}
+                fill={fillFor(values, min, max, isHovered)}
                 stroke={strokeFor(isHovered)}
                 strokeWidth={isHovered ? 1.25 : 0.5}
                 strokeLinejoin="round"
@@ -238,16 +285,16 @@ export function StateCountyMap({
                 onKeyDown={handleKeyDown}
               >
                 <title>
-                  {county
-                    ? `${countyLabel(county)}: ${county.nonHispanicWhitePct}% non-Hispanic White`
-                    : `${f.properties.name}: no data`}
+                  {`${county ? countyLabel(county) : f.properties.name}: ${
+                    values ? `${values[0]}% European` : "no data"
+                  } in ${year}`}
                 </title>
               </path>
             )
           })}
         </svg>
 
-        {hoveredFips && pointer && hovered && (
+        {hoveredFips && pointer && (hoveredCounty || hoveredFeature) && (
           <div
             className="pointer-events-none absolute z-10 min-w-[11rem] rounded-none border border-border bg-popover px-3 py-2 text-sm shadow-md"
             style={{
@@ -256,9 +303,14 @@ export function StateCountyMap({
               transform: "translateY(-100%)",
             }}
           >
-            <div className="font-medium text-foreground">{countyLabel(hovered)}</div>
+            <div className="font-medium text-foreground">
+              {hoveredCounty ? countyLabel(hoveredCounty) : hoveredFeature?.properties.name}
+            </div>
+            {!hoveredValues && (
+              <div className="mt-1 text-muted-foreground">No data for {year}</div>
+            )}
             <ul className="mt-1.5 space-y-0.5 tabular-nums">
-              {foldedCountyBreakdown(state, hovered).map(({ key, label, value }) => (
+              {(hoveredValues ? foldedBreakdown(hoveredValues) : []).map(({ key, label, value }) => (
                 <li key={key} className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <i
@@ -274,6 +326,20 @@ export function StateCountyMap({
             </ul>
           </div>
         )}
+      </div>
+
+      <YearSlider years={years} year={year} onChange={setYear} disabled={!history} />
+
+      <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-2">
+          <i
+            className="inline-block size-3 rounded-[3px] border border-border"
+            style={{ background: "var(--border)" }}
+            aria-hidden
+          />
+          No data for that year
+        </span>
+        <span>Darker means a larger European share.</span>
       </div>
 
       <Combobox

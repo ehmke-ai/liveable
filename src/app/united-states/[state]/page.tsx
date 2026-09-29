@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { COUNTY_HISTORY_YEARS } from "@/lib/county-history"
 import { COLORS, formatMedianAge, getCountryBySlug } from "@/lib/demographics"
 import {
   POPULATION_GROUP_LABELS,
@@ -163,6 +164,31 @@ export default async function StatePage({
         </CardContent>
       </Card>
 
+      {counties.length > 0 && (
+        <>
+          <header className="mt-12 mb-7">
+            <h2 className="section-title">European share by county</h2>
+            <p className="section-sub">
+              Non-Hispanic White minus Arab ancestry, % of population across all {counties.length}{" "}
+              {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}, from 1990 to 2025. Drag the
+              slider to change the year, hover a county to preview its figures, click to open its
+              page — or browse the full list below.
+            </p>
+          </header>
+
+          <Card className="border-border bg-card shadow-none">
+            <CardContent>
+              <StateCountyMap
+                key={state.slug}
+                state={state}
+                counties={counties}
+                years={COUNTY_HISTORY_YEARS}
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
+
       {us && (
         <>
           <header className="mt-12 mb-7">
@@ -277,25 +303,6 @@ export default async function StatePage({
           </div>
         </CardContent>
       </Card>
-
-      {counties.length > 0 && (
-        <>
-          <header className="mt-12 mb-7">
-            <h2 className="section-title">Non-Hispanic White share by county</h2>
-            <p className="section-sub">
-              White alone, not Hispanic or Latino, % of population across all {counties.length}{" "}
-              {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}. Hover a county to preview its figure, click to open its page — or browse
-              the full list below.
-            </p>
-          </header>
-
-          <Card className="border-border bg-card shadow-none">
-            <CardContent>
-              <StateCountyMap key={state.slug} state={state} counties={counties} />
-            </CardContent>
-          </Card>
-        </>
-      )}
 
       <footer className="fine-print mt-12 border-t border-border pt-6">
         <h2 className="section-title mb-3">Sources</h2>
