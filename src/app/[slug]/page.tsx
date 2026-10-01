@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 
+import { EuropeRegionMap } from "@/components/europe-region-map"
 import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
 import { UsCountyMap, type UsCountyRow } from "@/components/us-county-map"
@@ -119,7 +120,21 @@ export default async function CountryPage({
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
       <h1 className="sr-only">{country.country}</h1>
 
-      {!isUnitedStates && snapshotCard}
+      {!isUnitedStates && (
+        <>
+          {snapshotCard}
+
+          <header className="mt-12 mb-7">
+            <h2 className="section-title">Origin and religion by region</h2>
+            <p className="section-sub">
+              Where residents of each of {country.country}&apos;s regions were born, from the 2021
+              census, and their religion where it&apos;s recorded regionally. Hover a region for its
+              full breakdown and top countries of birth.
+            </p>
+          </header>
+          <EuropeRegionMap country={country.country} />
+        </>
+      )}
 
       {countyMapData && (
         <>

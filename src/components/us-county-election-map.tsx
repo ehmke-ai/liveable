@@ -1,13 +1,16 @@
 "use client"
 
-import { geoPath, type GeoPermissibleObjects } from "d3-geo"
-import { memo, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react"
-import { feature, mesh } from "topojson-client"
-import type { Feature, FeatureCollection, Geometry, MultiLineString } from "geojson"
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react"
 import { Download } from "lucide-react"
-import type { GeometryCollection, Topology } from "topojson-specification"
 
 import { ColorChooser } from "@/components/color-chooser"
+import {
+  countyLinkHandlers,
+  CountyPaths,
+  useCountyGeometry,
+  withCtRegions,
+  type CountyMapState,
+} from "@/components/county-map-geometry"
 import { Button } from "@/components/ui/button"
 import type { UsCountyRow } from "@/components/us-county-map"
 import {
@@ -18,11 +21,6 @@ import {
   downloadMapPng,
   PRO_IMMIG_COLOR,
 } from "@/components/us-county-map-export"
-import { CT_FIPS } from "@/lib/county-history"
-
-type CountyFeature = Feature<Geometry, { name: string }> & { id?: string | number }
-type UsTopology = Topology<{ counties: GeometryCollection; states: GeometryCollection }>
-type CtRegionsTopology = Topology<{ regions: GeometryCollection }>
 
 /** [trump %, harris %, total votes], from scripts/build-county-election-2024.py */
 type CountyResult = [number, number, number]
@@ -30,14 +28,9 @@ type CountyResults = Record<string, CountyResult>
 
 const RESULTS_URL = "/data/county-election-2024.json"
 
-// Same viewBox as the other US maps so every view draws the country at the same size
-const WIDTH = 960
-const HEIGHT = 600
-
 /** Margins at or beyond this many points take the deepest shade */
 const MARGIN_CAP = 60
 
-const TITLE = "2024 presidential election by county"
 const SUBTITLE =
   "Popular-vote margin between Donald Trump and Kamala Harris; deeper means a wider win."
 const SOURCE = "Source: county results compiled from state and county election offices (tonmcg)"
@@ -53,48 +46,25 @@ function fillFor(result: CountyResult | undefined, harrisColor: string, trumpCol
   return divergingShade(harrisColor, trumpColor, t)
 }
 
-type CountyOutline = { fips: string; d: string }
-type CountyShape = CountyOutline & { fill: string }
-
-function outlinesOf(features: CountyFeature[], path: ReturnType<typeof geoPath>): CountyOutline[] {
-  return features.flatMap((f) => {
-    const d = path(f as GeoPermissibleObjects)
-    return d ? [{ fips: String(f.id), d }] : []
-  })
-}
-
-// Memoized so hovering (which re-renders the parent) never touches the 3,000+ county paths
-const CountyPaths = memo(function CountyPaths({ shapes }: { shapes: CountyShape[] }) {
-  return shapes.map(({ fips, d, fill }) => (
-    <path
-      key={fips}
-      d={d}
-      data-fips={fips}
-      fill={fill}
-      stroke="var(--background)"
-      strokeWidth={0.25}
-      strokeLinejoin="round"
-      vectorEffect="non-scaling-stroke"
-    />
-  ))
-})
-
 export function UsCountyElectionMap({
   counties: rows,
   states,
   legendExtra,
+  state,
+  onOpenCounty,
 }: {
   counties: UsCountyRow[]
   /** State FIPS -> USPS abbreviation, for the tooltip heading */
   states: Record<string, string>
   /** Drawn beside the legend (UsMap's county/state toggle) */
   legendExtra?: ReactNode
+  /** Draw only this state's counties */
+  state?: CountyMapState
+  /** Opens a county's page; with it, the counties in `counties` are clickable links */
+  onOpenCounty?: (fips: string) => void
 }) {
-  const [features, setFeatures] = useState<CountyFeature[]>([])
-  const [ctRegions, setCtRegions] = useState<CountyFeature[]>([])
-  const [stateBorders, setStateBorders] = useState<MultiLineString | null>(null)
+  const geometry = useCountyGeometry(state)
   const [results, setResults] = useState<CountyResults | null>(null)
-  const [loading, setLoading] = useState(true)
   const [hoveredFips, setHoveredFips] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [harrisColor, setHarrisColor] = useState(PRO_IMMIG_COLOR)
@@ -105,55 +75,24 @@ export function UsCountyElectionMap({
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      fetch("/geo/us-counties-albers-10m.json").then((r) => r.json() as Promise<UsTopology>),
-      fetch(RESULTS_URL)
-        .then((r) => r.json() as Promise<CountyResults>)
-        .catch(() => null),
-      fetch("/geo/ct-planning-regions-albers.json")
-        .then((r) => r.json() as Promise<CtRegionsTopology>)
-        .catch(() => null),
-    ])
-      .then(([topology, countyResults, ctTopology]) => {
-        if (cancelled) return
-        const collection = feature(
-          topology,
-          topology.objects.counties
-        ) as FeatureCollection<Geometry, { name: string }>
-        setFeatures(collection.features as CountyFeature[])
-        setStateBorders(mesh(topology, topology.objects.states, (a, b) => a !== b))
-        setResults(countyResults)
-        if (ctTopology) {
-          const regions = feature(
-            ctTopology,
-            ctTopology.objects.regions
-          ) as FeatureCollection<Geometry, { name: string }>
-          setCtRegions(regions.features as CountyFeature[])
-        }
+    fetch(RESULTS_URL)
+      .then((r) => r.json() as Promise<CountyResults>)
+      .then((countyResults) => {
+        if (!cancelled) setResults(countyResults)
       })
-      .catch(() => {
-        if (!cancelled) setFeatures([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [])
 
-  const path = useMemo(() => geoPath(), [])
-
-  const countyOutlines = useMemo(() => outlinesOf(features, path), [features, path])
-  const ctRegionOutlines = useMemo(() => outlinesOf(ctRegions, path), [ctRegions, path])
+  const { width, height, counties: countyOutlines, ctRegions, regionLabels, stateBorders } = geometry
+  const loading = geometry.loading
 
   // Connecticut reports 2024 results by planning region, so draw those in place of its old counties
   const outlines = useMemo(
-    () =>
-      ctRegionOutlines.length
-        ? [...countyOutlines.filter((o) => !o.fips.startsWith(CT_FIPS)), ...ctRegionOutlines]
-        : countyOutlines,
-    [countyOutlines, ctRegionOutlines]
+    () => (ctRegions.length ? withCtRegions(countyOutlines, ctRegions) : countyOutlines),
+    [countyOutlines, ctRegions]
   )
 
   const shapes = useMemo(
@@ -165,12 +104,6 @@ export function UsCountyElectionMap({
   const pathByFips = useMemo(
     () => Object.fromEntries(outlines.map((o) => [o.fips, o.d])),
     [outlines]
-  )
-
-  // Planning regions aren't in the server-rendered county list; their names come with the shapes
-  const regionLabels = useMemo(
-    () => Object.fromEntries(ctRegions.map((f) => [String(f.id), f.properties.name])),
-    [ctRegions]
   )
 
   // One listener for the whole map: read the county off the path under the cursor
@@ -191,6 +124,7 @@ export function UsCountyElectionMap({
   }
 
   const hovered = hoveredFips ? results?.[hoveredFips] : undefined
+  const title = `2024 presidential election by county${state ? ` in ${state.state}` : ""}`
   const low = `Harris +${MARGIN_CAP}`
   const high = `Trump +${MARGIN_CAP}`
 
@@ -198,17 +132,17 @@ export function UsCountyElectionMap({
     setExporting(true)
     try {
       await downloadMapPng({
-        title: TITLE,
+        title,
         subtitle: SUBTITLE,
         legend: [
           { name: "2024 margin", stops: divergingStops(harrisColor, trumpColor), low, high },
         ],
         source: SOURCE,
-        mapWidth: WIDTH,
-        mapHeight: HEIGHT,
+        mapWidth: width,
+        mapHeight: height,
         shapes,
-        stateBorders: (stateBorders && path(stateBorders)) || undefined,
-        fileName: "2024-presidential-election-by-county.png",
+        stateBorders,
+        fileName: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`,
       })
     } finally {
       setExporting(false)
@@ -222,7 +156,7 @@ export function UsCountyElectionMap({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-balance text-foreground sm:text-lg">
-              {TITLE}
+              {title}
             </h3>
             <p className="text-xs text-muted-foreground">{SUBTITLE}</p>
           </div>
@@ -245,20 +179,21 @@ export function UsCountyElectionMap({
             </div>
           )}
           <svg
-            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            className="h-auto w-full touch-pan-y"
-            role="img"
-            aria-label={`Map: ${TITLE}`}
+            viewBox={`0 0 ${width} ${height}`}
+            className={`h-auto w-full touch-pan-y ${state ? "max-h-[75svh]" : ""}`}
+            role={onOpenCounty ? "group" : "img"}
+            aria-label={`Map: ${title}`}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => {
               setHoveredFips(null)
               setPointer(null)
             }}
+            {...countyLinkHandlers(onOpenCounty)}
           >
-            <CountyPaths shapes={shapes} />
+            <CountyPaths shapes={shapes} links={onOpenCounty ? labelByFips : undefined} />
             {stateBorders && (
               <path
-                d={path(stateBorders) ?? undefined}
+                d={stateBorders}
                 fill="none"
                 stroke="var(--background)"
                 strokeWidth={1}
@@ -292,7 +227,7 @@ export function UsCountyElectionMap({
               <div className="font-medium text-foreground">
                 {hoveredFips.startsWith("02")
                   ? "Alaska (statewide)"
-                  : `${labelByFips[hoveredFips] ?? regionLabels[hoveredFips]}, ${states[hoveredFips.slice(0, 2)]}`}
+                  : `${labelByFips[hoveredFips] ?? regionLabels[hoveredFips]}${state ? "" : `, ${states[hoveredFips.slice(0, 2)]}`}`}
               </div>
               <ul className="mt-1.5 space-y-0.5 tabular-nums">
                 {(

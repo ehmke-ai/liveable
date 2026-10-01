@@ -12,6 +12,7 @@ import { Download } from "lucide-react"
 import { ColorChooser } from "@/components/color-chooser"
 import { Button } from "@/components/ui/button"
 import { UsCountyElectionMap } from "@/components/us-county-election-map"
+import { UsCountyReligionMap } from "@/components/us-county-religion-map"
 import type { UsCountyRow } from "@/components/us-county-map"
 import {
   ANTI_IMMIG_COLOR,
@@ -283,21 +284,21 @@ function strokeFor(selected: boolean, hovered: boolean): string {
 }
 
 /** The map tabs: the state metrics, plus views that only exist at county level */
-type MapView = MapMetric | "election2024County"
+type MapView = MapMetric | "election2024County" | "religion"
 
 type ElectionLevel = "county" | "state"
 
 /**
  * `countyMap` replaces the state map while Demographics is selected (the county-level
- * UsCountyMap), and the county-level UsCountyElectionMap while 2024 election is shown by county. Both stay mounted when hidden so
- * they keep their state.
+ * UsCountyMap), the county-level UsCountyElectionMap while 2024 election is shown by county, and
+ * UsCountyReligionMap while Religion is selected. All stay mounted when hidden so they keep their state.
  */
 export function UsMap({
   countyMap,
   electionCounties,
 }: {
   countyMap: ReactNode
-  /** County labels and state abbreviations for the county-level 2024 election map */
+  /** County labels and state abbreviations for the county-level 2024 election and religion maps */
   electionCounties: { counties: UsCountyRow[]; states: Record<string, string> }
 }) {
   const [features, setFeatures] = useState<StateFeature[]>([])
@@ -305,7 +306,8 @@ export function UsMap({
   // Which level the 2024 election tab shows; remembered when switching away and back
   const [electionLevel, setElectionLevel] = useState<ElectionLevel>("county")
   // County-only views hide the state map, so any state metric will do behind them
-  const metric: MapMetric = view === "election2024County" ? "native" : view
+  const metric: MapMetric =
+    view === "election2024County" || view === "religion" ? "native" : view
   const electionActive = view === "election2024" || view === "election2024County"
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -373,7 +375,8 @@ export function UsMap({
   const detailPage = detail ? stateNavByAbbr[detail.abbr] : undefined
   const showCounties = view === "native"
   const showElection = view === "election2024County"
-  const showStates = !showCounties && !showElection
+  const showReligion = view === "religion"
+  const showStates = !showCounties && !showElection && !showReligion
 
   const labels = useMemo(
     () =>
@@ -465,6 +468,14 @@ export function UsMap({
         <Button
           type="button"
           size="sm"
+          variant={view === "religion" ? "default" : "secondary"}
+          onClick={() => setView("religion")}
+        >
+          Religion
+        </Button>
+        <Button
+          type="button"
+          size="sm"
           variant={view === "antiImmig" ? "default" : "secondary"}
           onClick={() => setView("antiImmig")}
         >
@@ -508,6 +519,13 @@ export function UsMap({
       <div className={showElection ? undefined : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
           <UsCountyElectionMap {...electionCounties} legendExtra={electionLevelToggle} />
+          <div className="hidden sm:block sm:w-32" aria-hidden />
+        </div>
+      </div>
+
+      <div className={showReligion ? undefined : "hidden"}>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <UsCountyReligionMap {...electionCounties} />
           <div className="hidden sm:block sm:w-32" aria-hidden />
         </div>
       </div>

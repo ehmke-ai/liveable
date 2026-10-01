@@ -167,12 +167,12 @@ export default async function StatePage({
       {counties.length > 0 && (
         <>
           <header className="mt-12 mb-7">
-            <h2 className="section-title">European share by county</h2>
+            <h2 className="section-title">Counties</h2>
             <p className="section-sub">
-              Non-Hispanic White minus Arab ancestry, % of population across all {counties.length}{" "}
-              {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}, from 1990 to 2025. Drag the
-              slider to change the year, hover a county to preview its figures, click to open its
-              page — or browse the full list below.
+              Demographics, the 2024 election, and religion across all {counties.length}{" "}
+              {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}. Switch views above the map,
+              hover a county to preview its figures, click to open its page — or browse the full
+              list below.
             </p>
           </header>
 

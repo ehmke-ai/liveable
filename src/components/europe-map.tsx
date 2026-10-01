@@ -8,18 +8,30 @@ import {
 import Link from "next/link"
 import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import { feature } from "topojson-client"
-import type { Feature, FeatureCollection, Geometry } from "geojson"
+import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson"
 import type { GeometryCollection, Topology } from "topojson-specification"
 
+import { Download } from "lucide-react"
+
+import { ColorChooser } from "@/components/color-chooser"
 import { Button } from "@/components/ui/button"
-import { ANTI_IMMIG_COLOR, divergingShade, PRO_IMMIG_COLOR } from "@/components/us-county-map-export"
+import {
+  ANTI_IMMIG_COLOR,
+  divergingGradient,
+  divergingShade,
+  divergingStops,
+  downloadMapPng,
+  PRO_IMMIG_COLOR,
+  shade,
+  SHADE_RANGE,
+  shadeGradient,
+  shadeStops,
+} from "@/components/us-county-map-export"
 import {
   COLORS,
   demographicsByIso,
   formatMedianAge,
   mapDemographicsData,
-  maxAntiImmig,
-  minAntiImmig,
   maxMapMedianAge,
   maxMapThirtyMarriedHomeowner,
   maxMapWealthShareUnder30,
@@ -32,15 +44,30 @@ import {
   type CountryDemographics,
 } from "@/lib/demographics"
 
-type MapMetric = "antiImmig" | "native" | "medianAge" | "thirtyMarriedHomeowner" | "wealthShareUnder30"
+type MapMetric = "foreignBorn" | "antiImmig" | "medianAge" | "thirtyMarriedHomeowner" | "wealthShareUnder30"
 
 type CountryFeature = Feature<Geometry, { name: string }> & { id?: string | number }
 type Ring = number[][]
 type PolygonCoords = Ring[]
 
-const WIDTH = 960
-const HEIGHT = 640
-const PAD = 24
+export const WIDTH = 960
+export const HEIGHT = 720
+export const PAD = 16
+
+/**
+ * The map is fitted to the data countries (Ireland to Poland, Sicily to the North Cape) rather
+ * than every country in the topology — fitting to all of Europe out to the Urals, Iceland, and
+ * Svalbard left the data countries small. Neighbors spill past the frame as context.
+ */
+export const FRAME: GeoPermissibleObjects = {
+  type: "MultiPoint",
+  coordinates: [
+    ...Array.from({ length: 43 }, (_, i) => [-11 + i, 36]),
+    ...Array.from({ length: 43 }, (_, i) => [-11 + i, 71.5]),
+    ...Array.from({ length: 72 }, (_, i) => [-11, 36 + i / 2]),
+    ...Array.from({ length: 72 }, (_, i) => [31, 36 + i / 2]),
+  ],
+}
 
 /** ISO 3166-1 numeric for Russia */
 const RUSSIA_ISO = "643"
@@ -216,100 +243,216 @@ function clipEuropeanRussia(f: CountryFeature): CountryFeature {
   }
 }
 
+/** For multipart countries (e.g. Norway's islands), label the largest piece rather than the area-weighted centroid of all of them. */
+function labelCentroid(
+  path: ReturnType<typeof geoPath>,
+  f: CountryFeature
+): [number, number] | null {
+  if (f.geometry.type !== "MultiPolygon") {
+    const c = path.centroid(f as GeoPermissibleObjects)
+    return Number.isFinite(c[0]) && Number.isFinite(c[1]) ? c : null
+  }
+
+  let largest: Polygon | null = null
+  let largestArea = -Infinity
+  for (const coordinates of f.geometry.coordinates) {
+    const candidate: Feature<Polygon> = {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "Polygon", coordinates },
+    }
+    const area = Math.abs(path.area(candidate as GeoPermissibleObjects))
+    if (area > largestArea) {
+      largestArea = area
+      largest = candidate.geometry
+    }
+  }
+  if (!largest) return null
+  const c = path.centroid({ type: "Feature", properties: {}, geometry: largest } as GeoPermissibleObjects)
+  return Number.isFinite(c[0]) && Number.isFinite(c[1]) ? c : null
+}
+
+/** Countries too small/cramped to reliably click or label on the map — listed in a sidebar, with their figure, instead, like the US map's small states. */
+const SIDEBAR_COUNTRIES = ["Switzerland", "Austria", "Netherlands", "Denmark", "Ireland"]
+const SIDEBAR_IDS = new Set(
+  SIDEBAR_COUNTRIES.flatMap((name) => {
+    const data = mapDemographicsData.find((d) => d.country === name)
+    return data ? [isoKey(data.isoNumeric)] : []
+  })
+)
+
+// Scale ends across the countries on the map (the shared min/max exports include the United States)
+const minMapForeignBorn = Math.min(...mapDemographicsData.map((d) => d.foreignBorn))
+const maxMapForeignBorn = Math.max(...mapDemographicsData.map((d) => d.foreignBorn))
+const minMapAntiImmig = Math.min(...mapDemographicsData.map((d) => d.antiImmig))
+const maxMapAntiImmig = Math.max(...mapDemographicsData.map((d) => d.antiImmig))
+
+const NO_DATA_FILL = "var(--border)"
+const NO_DATA_HOVER_FILL = "color-mix(in oklch, var(--foreground) 10%, var(--border))"
+
+type MetricConfig = {
+  /** Tab label */
+  tab: string
+  title: string
+  subtitle: string
+  /** Legend heading, and the figure's name in the tooltip */
+  name: string
+  low: string
+  high: string
+  source: string
+  defaultColor: string
+  /** When set, the scale diverges: this default low-end color, neutral mid-range, the chosen color at the high end */
+  defaultLowColor?: string
+  /** Color-picker labels for the low and high ends of a diverging scale */
+  colorLabels?: [string, string]
+  /** Position in the color scale, 0 (palest) to 1 (deepest) */
+  intensity: (d: CountryDemographics) => number
+  value: (d: CountryDemographics) => string
+  /** Short figure printed on the country */
+  label: (d: CountryDemographics) => string
+}
+
+const METRICS: Record<MapMetric, MetricConfig> = {
+  foreignBorn: {
+    tab: "Foreign-born",
+    title: "Foreign-born share by country",
+    subtitle: "Share of the population born in another country; deeper means higher.",
+    name: "Foreign-born",
+    low: `${minMapForeignBorn}%`,
+    high: `${maxMapForeignBorn}%`,
+    source: "Source: Eurostat, population by country of birth, 1 January 2025",
+    defaultColor: "#593001",
+    intensity: (d) => rangeIntensity(d.foreignBorn, minMapForeignBorn, maxMapForeignBorn),
+    value: (d) => `${d.foreignBorn}%`,
+    label: (d) => `${d.foreignBorn}%`,
+  },
+  antiImmig: {
+    tab: "Immigration sentiment",
+    title: "Immigration sentiment by country",
+    subtitle:
+      "Share who would allow few or no immigrants from poorer countries outside Europe; the scale runs from the most pro-immigration countries to the most anti.",
+    name: "Immigration sentiment",
+    low: `Pro (${minMapAntiImmig}%)`,
+    high: `Anti (${maxMapAntiImmig}%)`,
+    source: "Source: European Social Survey 2023 (Round 9/10 for Denmark)",
+    defaultColor: ANTI_IMMIG_COLOR,
+    defaultLowColor: PRO_IMMIG_COLOR,
+    intensity: (d) => rangeIntensity(d.antiImmig, minMapAntiImmig, maxMapAntiImmig),
+    value: (d) => `${d.antiImmig}% opposed`,
+    label: (d) => `${d.antiImmig}%`,
+  },
+  medianAge: {
+    tab: "Native median age",
+    title: "Native median age by country",
+    subtitle:
+      "Median age of the native-born population; the scale runs from the oldest countries to the youngest.",
+    name: "Native median age",
+    low: `Older (${formatMedianAge(maxMapMedianAge)} yrs)`,
+    high: `Younger (${formatMedianAge(minMapMedianAge)} yrs)`,
+    source: "Source: Eurostat, population born in reporting country, 1 January 2025",
+    defaultColor: "#004278",
+    defaultLowColor: "#E76224",
+    colorLabels: ["Older color", "Younger color"],
+    intensity: (d) => medianAgeYouthIntensity(d.medianAge, minMapMedianAge, maxMapMedianAge),
+    value: (d) => `${formatMedianAge(d.medianAge)} yrs`,
+    label: (d) => formatMedianAge(d.medianAge),
+  },
+  thirtyMarriedHomeowner: {
+    tab: "Fishback benchmark",
+    title: "Fishback benchmark by country",
+    subtitle:
+      "Share of 30-year-olds who are married and own their home; the scale runs from the lowest countries to the highest.",
+    name: "30, married & homeowner",
+    low: `${minMapThirtyMarriedHomeowner}%`,
+    high: `${maxMapThirtyMarriedHomeowner}%`,
+    source: "Source: Eurostat EU-SILC household composition and tenure by age",
+    defaultColor: "#004278",
+    defaultLowColor: "#E76224",
+    colorLabels: ["Low color", "High color"],
+    intensity: (d) =>
+      rangeIntensity(
+        d.thirtyMarriedHomeowner,
+        minMapThirtyMarriedHomeowner,
+        maxMapThirtyMarriedHomeowner
+      ),
+    value: (d) => `${d.thirtyMarriedHomeowner}%`,
+    label: (d) => `${d.thirtyMarriedHomeowner}%`,
+  },
+  wealthShareUnder30: {
+    tab: "Wealth share (30 & under)",
+    title: "Wealth share held by people 30 and under, by country",
+    subtitle:
+      "Estimated share of total household net wealth; the scale runs from the lowest countries to the highest.",
+    name: "Wealth share, 30 & under",
+    low: `${minMapWealthShareUnder30}%`,
+    high: `${maxMapWealthShareUnder30}%`,
+    source: "Source: ECB Household Finance and Consumption Survey (interpolated from under-35)",
+    defaultColor: "#004278",
+    defaultLowColor: "#E76224",
+    colorLabels: ["Low color", "High color"],
+    intensity: (d) =>
+      rangeIntensity(d.wealthShareUnder30, minMapWealthShareUnder30, maxMapWealthShareUnder30),
+    value: (d) => `${d.wealthShareUnder30}%`,
+    label: (d) => `${d.wealthShareUnder30}%`,
+  },
+}
+
+const METRIC_ORDER: MapMetric[] = [
+  "foreignBorn",
+  "antiImmig",
+  "medianAge",
+  "thirtyMarriedHomeowner",
+  "wealthShareUnder30",
+]
+
+const DEFAULT_COLORS = Object.fromEntries(
+  Object.entries(METRICS).map(([metric, config]) => [metric, config.defaultColor])
+) as Record<MapMetric, string>
+
+const DEFAULT_LOW_COLORS = Object.fromEntries(
+  Object.entries(METRICS).flatMap(([metric, config]) =>
+    config.defaultLowColor ? [[metric, config.defaultLowColor]] : []
+  )
+) as Partial<Record<MapMetric, string>>
+
+// Scaled like the US map: 15% of the chosen color at the low end, full color at the high.
+// Diverging metrics (given a `lowColor`) run from full low color through neutral to full chosen color.
 function fillFor(
   data: CountryDemographics | undefined,
   metric: MapMetric,
-  hovered: boolean,
-  selected: boolean
+  color: string,
+  lowColor: string | undefined,
+  hovered = false,
+  selected = false
 ) {
-  if (!data) {
-    return hovered
-      ? "color-mix(in oklch, var(--foreground) 10%, var(--border))"
-      : "var(--border)"
-  }
-
-  if (metric === "antiImmig") {
-    // Diverging: most pro-immigration country deepest blue, mid-range neutral, most anti deepest red
-    const t = rangeIntensity(data.antiImmig, minAntiImmig, maxAntiImmig)
-    return divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, t, selected ? 15 : hovered ? 8 : 0)
-  }
-
-  if (metric === "medianAge") {
-    const t = medianAgeYouthIntensity(
-      data.medianAge,
-      minMapMedianAge,
-      maxMapMedianAge
-    )
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(88, 160, 200, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(140, 200, 230, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(88, 160, 200, ${alpha})`
-  }
-
-  if (metric === "thirtyMarriedHomeowner") {
-    const t = rangeIntensity(
-      data.thirtyMarriedHomeowner,
-      minMapThirtyMarriedHomeowner,
-      maxMapThirtyMarriedHomeowner
-    )
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(139, 92, 246, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(180, 150, 250, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(139, 92, 246, ${alpha})`
-  }
-
-  if (metric === "wealthShareUnder30") {
-    const t = rangeIntensity(
-      data.wealthShareUnder30,
-      minMapWealthShareUnder30,
-      maxMapWealthShareUnder30
-    )
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(34, 197, 94, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(140, 230, 170, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(34, 197, 94, ${alpha})`
-  }
-
-  const t = data.native / 100
-  const pct = Math.round(15 + t * 85)
-  if (selected) {
-    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 15)}%, var(--muted))`
-  }
-  if (hovered) {
-    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 8)}%, var(--muted))`
-  }
-  return `color-mix(in oklch, var(--foreground) ${pct}%, var(--muted))`
+  if (!data) return hovered ? NO_DATA_HOVER_FILL : NO_DATA_FILL
+  const t = METRICS[metric].intensity(data)
+  const boost = selected ? 15 : hovered ? 8 : 0
+  if (lowColor) return divergingShade(lowColor, color, t, boost)
+  const pct = Math.round(SHADE_RANGE[0] + t * (SHADE_RANGE[1] - SHADE_RANGE[0]))
+  return shade(color, Math.min(100, pct + boost))
 }
 
-function metricLabel(data: CountryDemographics, metric: MapMetric): string {
-  if (metric === "antiImmig") return `${data.antiImmig}%`
-  if (metric === "medianAge") return `${formatMedianAge(data.medianAge)} yrs`
-  if (metric === "thirtyMarriedHomeowner") return `${data.thirtyMarriedHomeowner}%`
-  if (metric === "wealthShareUnder30") return `${data.wealthShareUnder30}%`
-  return `${data.native}%`
-}
-
-function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): string {
-  if (selected) {
-    if (metric === "medianAge") return "#9ecce8"
-    if (metric === "thirtyMarriedHomeowner") return "#c4b5fd"
-    if (metric === "wealthShareUnder30") return "#86efac"
-    return "var(--foreground)"
-  }
+function strokeFor(selected: boolean, hovered: boolean): string {
+  if (selected) return "var(--foreground)"
   if (hovered) return "color-mix(in oklch, var(--foreground) 55%, var(--background))"
-  return "color-mix(in oklch, var(--foreground) 35%, var(--background))"
+  return "var(--background)"
 }
-
-/** Countries too small/cramped to reliably click or label on the map — listed in a sidebar instead, like the US map's small states. */
-const SIDEBAR_COUNTRIES = ["Switzerland", "Austria", "Netherlands", "Denmark", "Ireland"]
 
 export function EuropeMap() {
   const [features, setFeatures] = useState<CountryFeature[]>([])
-  const [metric, setMetric] = useState<MapMetric>("native")
+  const [metric, setMetric] = useState<MapMetric>("foreignBorn")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [colors, setColors] = useState<Record<MapMetric, string>>(DEFAULT_COLORS)
+  const [lowColors, setLowColors] = useState(DEFAULT_LOW_COLORS)
+  const [exporting, setExporting] = useState(false)
+  const color = colors[metric]
+  const config = METRICS[metric]
+  const lowColor = lowColors[metric]
+  const [lowColorLabel, highColorLabel] = config.colorLabels ?? ["Pro color", "Anti color"]
 
   function updatePointer(e: MouseEvent<SVGPathElement>) {
     const svg = e.currentTarget.ownerSVGElement
@@ -346,31 +489,23 @@ export function EuropeMap() {
     }
   }, [])
 
-  const collection = useMemo(
-    () => ({ type: "FeatureCollection" as const, features }),
-    [features]
+  // Lambert conformal conic — standard for accurate European shapes/areas
+  const path = useMemo(
+    () =>
+      geoPath(
+        geoConicConformal()
+          .parallels([43, 62])
+          .rotate([-10, 0])
+          .fitExtent(
+            [
+              [PAD, PAD],
+              [WIDTH - PAD, HEIGHT - PAD],
+            ],
+            FRAME
+          )
+      ),
+    []
   )
-
-  const projection = useMemo(() => {
-    // Lambert conformal conic — standard for accurate European shapes/areas
-    const proj = geoConicConformal()
-      .parallels([43, 62])
-      .rotate([-10, 0])
-
-    if (!features.length) {
-      return proj.scale(800).translate([WIDTH / 2, HEIGHT / 2])
-    }
-
-    return proj.fitExtent(
-      [
-        [PAD, PAD],
-        [WIDTH - PAD, HEIGHT - PAD],
-      ],
-      collection
-    )
-  }, [collection, features.length])
-
-  const path = useMemo(() => geoPath(projection), [projection])
 
   // Draw selected/hovered countries last so their strokes sit on top
   const orderedFeatures = useMemo(() => {
@@ -392,192 +527,244 @@ export function EuropeMap() {
   const selected = selectedId ? demographicsByIso[selectedId] : undefined
   const detail = selected ?? hovered
 
+  const labels = useMemo(
+    () =>
+      features.flatMap((f) => {
+        const id = isoKey(f.id)
+        const data = demographicsByIso[id]
+        if (!data || SIDEBAR_IDS.has(id)) return []
+        const centroid = labelCentroid(path, f)
+        return centroid ? [{ id, text: config.label(data), x: centroid[0], y: centroid[1] }] : []
+      }),
+    [features, path, config]
+  )
+
+  async function handleDownload() {
+    setExporting(true)
+    try {
+      await downloadMapPng({
+        title: config.title,
+        subtitle: config.subtitle,
+        legend: [
+          {
+            name: config.name,
+            stops: lowColor ? divergingStops(lowColor, color) : shadeStops(color),
+            low: config.low,
+            high: config.high,
+          },
+        ],
+        source: config.source,
+        mapWidth: WIDTH,
+        mapHeight: HEIGHT,
+        shapes: features.flatMap((f) => {
+          const d = path(f as GeoPermissibleObjects)
+          return d
+            ? [{ d, fill: fillFor(demographicsByIso[isoKey(f.id)], metric, color, lowColor) }]
+            : []
+        }),
+        shapeStroke: 1,
+        labels: labels.map(({ text, x, y }) => ({ x, y, text })),
+        fileName: `${config.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`,
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
+        {METRIC_ORDER.map((m) => (
           <Button
+            key={m}
             type="button"
             size="sm"
-            variant={metric === "native" ? "default" : "secondary"}
-            onClick={() => setMetric("native")}
+            variant={metric === m ? "default" : "secondary"}
+            onClick={() => setMetric(m)}
           >
-            Native / European
+            {METRICS[m].tab}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={metric === "antiImmig" ? "default" : "secondary"}
-            onClick={() => setMetric("antiImmig")}
-          >
-            Immigration sentiment
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={metric === "medianAge" ? "default" : "secondary"}
-            onClick={() => setMetric("medianAge")}
-          >
-            Native median age
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={metric === "thirtyMarriedHomeowner" ? "default" : "secondary"}
-            onClick={() => setMetric("thirtyMarriedHomeowner")}
-          >
-            Fishback benchmark
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={metric === "wealthShareUnder30" ? "default" : "secondary"}
-            onClick={() => setMetric("wealthShareUnder30")}
-          >
-            Wealth share (30 &amp; under)
-          </Button>
-        </div>
+        ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-        <div className="relative">
-          {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
-              Loading map…
-            </div>
-          )}
-          <svg
-            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            className="h-auto w-full touch-pan-y"
-            role="img"
-            aria-label="Interactive map of Europe showing demographic metrics"
+      {/* Title, map, legend, and source sit together so a screenshot of this block stands alone */}
+      <figure className="space-y-3 bg-background">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-balance text-foreground sm:text-lg">
+              {config.title}
+            </h3>
+            <p className="text-xs text-muted-foreground">{config.subtitle}</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            disabled={loading || exporting}
           >
-            {orderedFeatures.map((f) => {
-              const id = isoKey(f.id)
-              const data = demographicsByIso[id]
+            <Download aria-hidden />
+            {exporting ? "Saving…" : "PNG"}
+          </Button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <div className="relative">
+            {loading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
+                Loading map…
+              </div>
+            )}
+            <svg
+              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+              className="h-auto max-h-[75svh] w-full touch-pan-y overflow-hidden"
+              role="img"
+              aria-label={`Map: ${config.title}`}
+            >
+              {orderedFeatures.map((f) => {
+                const id = isoKey(f.id)
+                const data = demographicsByIso[id]
+                const isHovered = hoveredId === id
+                const isSelected = selectedId === id
+                const d = path(f as GeoPermissibleObjects)
+                if (!d) return null
+
+                return (
+                  <path
+                    key={id || f.properties.name}
+                    d={d}
+                    fill={fillFor(data, metric, color, lowColor, isHovered, isSelected)}
+                    stroke={strokeFor(isSelected, isHovered)}
+                    strokeWidth={isSelected ? 1.75 : isHovered ? 1.5 : 1}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                    className={`${data ? "cursor-pointer" : "cursor-default"} transition-[fill,stroke-width] duration-150`}
+                    onMouseEnter={(e) => {
+                      setHoveredId(id)
+                      updatePointer(e)
+                    }}
+                    onMouseMove={updatePointer}
+                    onMouseLeave={() => {
+                      setHoveredId(null)
+                      setPointer(null)
+                    }}
+                    onClick={() => {
+                      if (!data) return
+                      setSelectedId((prev) => (prev === id ? null : id))
+                    }}
+                  >
+                    <title>
+                      {data
+                        ? `${data.country}: ${config.value(data)}`
+                        : `${f.properties.name}: no data`}
+                    </title>
+                  </path>
+                )
+              })}
+
+              {/* Labels in a separate pass so hovered/selected countries drawn later don't cover them */}
+              {labels.map(({ id, text, x, y }) => (
+                <text
+                  key={id}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  paintOrder="stroke"
+                  stroke="var(--background)"
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                  className="pointer-events-none select-none font-bold tabular-nums"
+                  style={{ fontSize: 13, fill: "var(--foreground)" }}
+                >
+                  {text}
+                </text>
+              ))}
+            </svg>
+
+            {hoveredId && pointer && (
+              <div
+                className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
+                style={{
+                  left: `min(${pointer.x}%, calc(100% - 10rem))`,
+                  top: `max(${pointer.y - 2}%, 0.5rem)`,
+                  transform: "translateY(-100%)",
+                }}
+              >
+                {hovered ? (
+                  <>
+                    <div className="font-medium text-foreground">{hovered.country}</div>
+                    <div className="tabular-nums text-muted-foreground">
+                      {config.name}{" "}
+                      <span className="font-medium text-foreground">{config.value(hovered)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="font-medium text-foreground">
+                    {hoveredName ?? "Unknown"}: no data
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-border sm:w-44">
+            {SIDEBAR_COUNTRIES.map((name) => {
+              const data = mapDemographicsData.find((d) => d.country === name)
+              if (!data) return null
+              const id = isoKey(data.isoNumeric)
               const isHovered = hoveredId === id
               const isSelected = selectedId === id
-              const d = path(f as GeoPermissibleObjects)
-              if (!d) return null
-
               return (
-                <path
-                  key={id || f.properties.name}
-                  d={d}
-                  fill={fillFor(data, metric, isHovered, isSelected)}
-                  stroke={strokeFor(metric, isSelected, isHovered)}
-                  strokeWidth={isSelected ? 1.75 : isHovered ? 1.25 : 0.55}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                  className={
-                    data
-                      ? "cursor-pointer transition-[fill,stroke-width] duration-150"
-                      : "cursor-default"
-                  }
-                  onMouseEnter={(e) => {
-                    setHoveredId(id)
-                    updatePointer(e)
-                  }}
-                  onMouseMove={updatePointer}
-                  onMouseLeave={() => {
-                    setHoveredId(null)
-                    setPointer(null)
-                  }}
-                  onClick={() => {
-                    if (!data) return
-                    setSelectedId((prev) => (prev === id ? null : id))
-                  }}
+                <button
+                  key={name}
+                  type="button"
+                  title={`${data.country}: ${config.value(data)}`}
+                  className="flex w-full cursor-pointer items-center justify-between gap-2 border-b border-border/60 px-3 py-1.5 text-left text-xs font-bold tracking-wide text-foreground transition-colors last:border-b-0"
+                  style={{ background: fillFor(data, metric, color, lowColor, isHovered, isSelected) }}
+                  onMouseEnter={() => setHoveredId(id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  onClick={() => setSelectedId((prev) => (prev === id ? null : id))}
                 >
-                  <title>
-                    {data
-                      ? `${data.country}: ${metricLabel(data, metric)}`
-                      : `${f.properties.name}: no data`}
-                  </title>
-                </path>
+                  <span
+                    className="rounded-[3px] px-1"
+                    style={{ background: "color-mix(in oklch, var(--background) 70%, transparent)" }}
+                  >
+                    {name}
+                  </span>
+                  <span
+                    className="rounded-[3px] px-1 tabular-nums"
+                    style={{ background: "color-mix(in oklch, var(--background) 70%, transparent)" }}
+                  >
+                    {config.label(data)}
+                  </span>
+                </button>
               )
             })}
-          </svg>
+          </div>
+        </div>
 
-          {hoveredId && pointer && (
+        <figcaption className="flex flex-wrap items-end gap-x-6 gap-y-3 text-xs">
+          <div className="w-48 space-y-1">
+            <div className="font-medium text-foreground">{config.name}</div>
             <div
-              className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
+              className="h-2.5 border border-border"
               style={{
-                left: `min(${pointer.x}%, calc(100% - 10rem))`,
-                top: `max(${pointer.y - 2}%, 0.5rem)`,
-                transform: "translateY(-100%)",
+                background: lowColor
+                  ? divergingGradient(lowColor, color)
+                  : shadeGradient(color),
               }}
-            >
-              {hovered ? (
-                <>
-                  <div className="font-medium text-foreground">{hovered.country}</div>
-                  <div className="tabular-nums text-muted-foreground">
-                    {metric === "antiImmig" ? (
-                      <>
-                        Opposition{" "}
-                        <span style={{ color: ANTI_IMMIG_COLOR }}>{hovered.antiImmig}%</span>
-                      </>
-                    ) : metric === "medianAge" ? (
-                      <>
-                        Native median age{" "}
-                        <span style={{ color: COLORS.medianAge }}>
-                          {formatMedianAge(hovered.medianAge)} yrs
-                        </span>
-                      </>
-                    ) : metric === "thirtyMarriedHomeowner" ? (
-                      <>
-                        30, married &amp; homeowner{" "}
-                        <span style={{ color: COLORS.thirtyMarriedHomeowner }}>
-                          {hovered.thirtyMarriedHomeowner}%
-                        </span>
-                      </>
-                    ) : metric === "wealthShareUnder30" ? (
-                      <>
-                        Wealth share, 30 &amp; under{" "}
-                        <span style={{ color: COLORS.wealthShareUnder30 }}>
-                          {hovered.wealthShareUnder30}%
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        Native / European{" "}
-                        <span style={{ color: COLORS.native }}>{hovered.native}%</span>
-                      </>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="font-medium text-foreground">
-                  {hoveredName ?? "Unknown"}: no data
-                </div>
-              )}
+            />
+            <div className="flex justify-between gap-2 tabular-nums text-muted-foreground">
+              <span>{config.low}</span>
+              <span className="text-right">{config.high}</span>
             </div>
-          )}
-        </div>
-
-        <div className="overflow-hidden rounded-lg border border-border sm:w-36">
-          {SIDEBAR_COUNTRIES.map((name) => {
-            const data = mapDemographicsData.find((d) => d.country === name)
-            if (!data) return null
-            const id = String(Number(data.isoNumeric))
-            const isHovered = hoveredId === id
-            const isSelected = selectedId === id
-            return (
-              <button
-                key={name}
-                type="button"
-                className="block w-full cursor-pointer border-b border-border/60 px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors last:border-b-0"
-                style={{ background: fillFor(data, metric, isHovered, isSelected) }}
-                onMouseEnter={() => setHoveredId(id)}
-                onMouseLeave={() => setHoveredId(null)}
-                onClick={() => setSelectedId((prev) => (prev === id ? null : id))}
-              >
-                {name}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+          </div>
+          <LegendSwatch color={NO_DATA_FILL} label="No data" />
+          <span className="ml-auto text-muted-foreground">{config.source}</span>
+        </figcaption>
+      </figure>
 
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
         <div className="rounded-lg border border-border bg-card/40 px-4 py-3 text-sm">
@@ -608,12 +795,12 @@ export function EuropeMap() {
                 </div>
               </div>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 tabular-nums sm:grid-cols-4">
-                <Stat label="Native / European" value={`${detail.native}%`} color={COLORS.native} />
+                <Stat label="Foreign-born" value={`${detail.foreignBorn}%`} color={COLORS.native} />
                 <Stat label="Catholic" value={`${detail.catholic}%`} color={COLORS.catholic} />
                 <Stat label="Protestant" value={`${detail.protestant}%`} color={COLORS.protestant} />
                 <Stat label="Orthodox" value={`${detail.orthodox}%`} color={COLORS.orthodox} />
                 <Stat
-                  label="Anti-immigration"
+                  label="Anti-immigration sentiment"
                   value={`${detail.antiImmig}%`}
                   color={COLORS.anti}
                 />
@@ -636,90 +823,62 @@ export function EuropeMap() {
             </div>
           ) : (
             <p className="text-muted-foreground">
-              Select one of {mapDemographicsData.length} countries in the data pool to inspect
-              demographics. Unhighlighted European countries are shown for geographic context
-              only.
+              Hover or select one of {mapDemographicsData.length} countries to inspect its
+              figures. Unshaded European countries are shown for geographic context only.
             </p>
           )}
         </div>
 
-        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:min-w-[10rem]">
-          <span className="font-medium text-foreground">Legend</span>
-          {metric === "antiImmig" ? (
-            <>
-              <LegendSwatch
-                color={divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, 0)}
-                label={`Pro-immigration (${minAntiImmig}%)`}
-              />
-              <LegendSwatch
-                color={divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, 0.5)}
-                label="Mid-range"
-              />
-              <LegendSwatch
-                color={divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, 1)}
-                label={`Anti-immigration (${maxAntiImmig}%)`}
-              />
-            </>
-          ) : metric === "medianAge" ? (
-            <>
-              <LegendSwatch color="rgba(88,160,200,0.3)" label="Older native pop." />
-              <LegendSwatch color="rgba(88,160,200,1)" label="Younger native pop." />
-            </>
-          ) : metric === "thirtyMarriedHomeowner" ? (
-            <>
-              <LegendSwatch
-                color="rgba(139,92,246,0.3)"
-                label={`Lower share (${minMapThirtyMarriedHomeowner}%)`}
-              />
-              <LegendSwatch
-                color="rgba(139,92,246,1)"
-                label={`Higher share (${maxMapThirtyMarriedHomeowner}%)`}
-              />
-            </>
-          ) : metric === "wealthShareUnder30" ? (
-            <>
-              <LegendSwatch
-                color="rgba(34,197,94,0.3)"
-                label={`Lower share (${minMapWealthShareUnder30}%)`}
-              />
-              <LegendSwatch
-                color="rgba(34,197,94,1)"
-                label={`Higher share (${maxMapWealthShareUnder30}%)`}
-              />
-            </>
-          ) : (
-            <>
-              <LegendSwatch
-                color="color-mix(in oklch, var(--foreground) 15%, var(--muted))"
-                label="Lower native share"
-              />
-              <LegendSwatch color="var(--foreground)" label="Higher native share" />
-            </>
+        <div className="space-y-3 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm">
+          {lowColor && (
+            <MapColorControl
+              label={lowColorLabel}
+              color={lowColor}
+              onChange={(next) => setLowColors((prev) => ({ ...prev, [metric]: next }))}
+            />
           )}
-          <LegendSwatch color="var(--border)" label="No data" />
+          <MapColorControl
+            label={lowColor ? highColorLabel : "Map color"}
+            color={color}
+            onChange={(next) => setColors((prev) => ({ ...prev, [metric]: next }))}
+          />
         </div>
       </div>
     </div>
   )
 }
 
-function Stat({
-  label,
-  value,
-  color,
-  className,
-}: {
-  label: string
-  value: string
-  color: string
-  className?: string
-}) {
+function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className={className}>
+    <div>
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="font-medium" style={{ color }}>
         {value}
       </dd>
+    </div>
+  )
+}
+
+function MapColorControl({
+  label,
+  color,
+  onChange,
+}: {
+  label: string
+  color: string
+  onChange: (color: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <i
+          className="inline-block size-3 shrink-0 rounded-[3px] border border-border"
+          style={{ background: color }}
+          aria-hidden
+        />
+        <span className="font-medium text-foreground">{label}</span>
+      </div>
+      <ColorChooser color={color} onChange={onChange} label={label} />
     </div>
   )
 }

@@ -3,6 +3,12 @@ export type CountryDemographics = {
   /** ISO 3166-1 numeric code as string (matches world-atlas ids) */
   isoNumeric: string
   native: number
+  /**
+   * Share of the population born abroad, %.
+   * Europe: Eurostat migr_pop3ctb, 1 January 2025.
+   * United States: Census ACS 2023 1-year.
+   */
+  foreignBorn: number
   catholic: number
   protestant: number
   orthodox: number
@@ -36,21 +42,22 @@ export type CountryDemographics = {
 }
 
 export const demographicsData: CountryDemographics[] = [
-  { country: "Germany", isoNumeric: "276", native: 80, catholic: 24, protestant: 22, orthodox: 3, antiImmig: 34, marketCap: 3036, medianAge: 45.9, thirtyMarriedHomeowner: 24, wealthShareUnder30: 3 },
-  { country: "Austria", isoNumeric: "040", native: 81, catholic: 50, protestant: 3, orthodox: 5, antiImmig: 57, marketCap: 224.5, medianAge: 44.4, thirtyMarriedHomeowner: 29, wealthShareUnder30: 4 },
-  { country: "Switzerland", isoNumeric: "756", native: 75, catholic: 30, protestant: 19, orthodox: 2, antiImmig: 31, marketCap: 1790, medianAge: 41.3, thirtyMarriedHomeowner: 19, wealthShareUnder30: 3 },
-  { country: "Netherlands", isoNumeric: "528", native: 75, catholic: 17, protestant: 14, orthodox: 1, antiImmig: 39, marketCap: 2120, medianAge: 43.0, thirtyMarriedHomeowner: 27, wealthShareUnder30: 4 },
-  { country: "Norway", isoNumeric: "578", native: 85, catholic: 3, protestant: 62, orthodox: 1, antiImmig: 16, marketCap: 515, medianAge: 41.1, thirtyMarriedHomeowner: 16, wealthShareUnder30: 6 },
-  { country: "Denmark", isoNumeric: "208", native: 84, catholic: 1, protestant: 70, orthodox: 1, antiImmig: 40, marketCap: 650, medianAge: 43.1, thirtyMarriedHomeowner: 14, wealthShareUnder30: 4 },
-  { country: "Sweden", isoNumeric: "752", native: 78, catholic: 1, protestant: 51, orthodox: 2, antiImmig: 13, marketCap: 1410, medianAge: 40.7, thirtyMarriedHomeowner: 13, wealthShareUnder30: 5 },
-  { country: "Poland", isoNumeric: "616", native: 97, catholic: 71, protestant: 1, orthodox: 1, antiImmig: 49, marketCap: 292, medianAge: 43.6, thirtyMarriedHomeowner: 39, wealthShareUnder30: 7 },
-  { country: "Italy", isoNumeric: "380", native: 91, catholic: 61, protestant: 1, orthodox: 3, antiImmig: 41, marketCap: 950, medianAge: 50.1, thirtyMarriedHomeowner: 22, wealthShareUnder30: 2 },
-  { country: "France", isoNumeric: "250", native: 80, catholic: 47, protestant: 2, orthodox: 1, antiImmig: 32, marketCap: 3450, medianAge: 41.9, thirtyMarriedHomeowner: 25, wealthShareUnder30: 4 },
-  { country: "Ireland", isoNumeric: "372", native: 77, catholic: 69, protestant: 3, orthodox: 2, antiImmig: 40, marketCap: 298, medianAge: 40.0, thirtyMarriedHomeowner: 21, wealthShareUnder30: 5 },
+  { country: "Germany", isoNumeric: "276", native: 80, foreignBorn: 20.5, catholic: 24, protestant: 22, orthodox: 3, antiImmig: 34, marketCap: 3036, medianAge: 45.9, thirtyMarriedHomeowner: 24, wealthShareUnder30: 3 },
+  { country: "Austria", isoNumeric: "040", native: 81, foreignBorn: 22.5, catholic: 50, protestant: 3, orthodox: 5, antiImmig: 57, marketCap: 224.5, medianAge: 44.4, thirtyMarriedHomeowner: 29, wealthShareUnder30: 4 },
+  { country: "Switzerland", isoNumeric: "756", native: 75, foreignBorn: 31.7, catholic: 30, protestant: 19, orthodox: 2, antiImmig: 31, marketCap: 1790, medianAge: 41.3, thirtyMarriedHomeowner: 19, wealthShareUnder30: 3 },
+  { country: "Netherlands", isoNumeric: "528", native: 75, foreignBorn: 16.8, catholic: 17, protestant: 14, orthodox: 1, antiImmig: 39, marketCap: 2120, medianAge: 43.0, thirtyMarriedHomeowner: 27, wealthShareUnder30: 4 },
+  { country: "Norway", isoNumeric: "578", native: 85, foreignBorn: 18.7, catholic: 3, protestant: 62, orthodox: 1, antiImmig: 16, marketCap: 515, medianAge: 41.1, thirtyMarriedHomeowner: 16, wealthShareUnder30: 6 },
+  { country: "Denmark", isoNumeric: "208", native: 84, foreignBorn: 14.4, catholic: 1, protestant: 70, orthodox: 1, antiImmig: 40, marketCap: 650, medianAge: 43.1, thirtyMarriedHomeowner: 14, wealthShareUnder30: 4 },
+  { country: "Sweden", isoNumeric: "752", native: 78, foreignBorn: 20.8, catholic: 1, protestant: 51, orthodox: 2, antiImmig: 13, marketCap: 1410, medianAge: 40.7, thirtyMarriedHomeowner: 13, wealthShareUnder30: 5 },
+  { country: "Poland", isoNumeric: "616", native: 97, foreignBorn: 2.6, catholic: 71, protestant: 1, orthodox: 1, antiImmig: 49, marketCap: 292, medianAge: 43.6, thirtyMarriedHomeowner: 39, wealthShareUnder30: 7 },
+  { country: "Italy", isoNumeric: "380", native: 91, foreignBorn: 11.8, catholic: 61, protestant: 1, orthodox: 3, antiImmig: 41, marketCap: 950, medianAge: 50.1, thirtyMarriedHomeowner: 22, wealthShareUnder30: 2 },
+  { country: "France", isoNumeric: "250", native: 80, foreignBorn: 14.0, catholic: 47, protestant: 2, orthodox: 1, antiImmig: 32, marketCap: 3450, medianAge: 41.9, thirtyMarriedHomeowner: 25, wealthShareUnder30: 4 },
+  { country: "Ireland", isoNumeric: "372", native: 77, foreignBorn: 23.3, catholic: 69, protestant: 3, orthodox: 2, antiImmig: 40, marketCap: 298, medianAge: 40.0, thirtyMarriedHomeowner: 21, wealthShareUnder30: 5 },
   {
     country: "United States",
     isoNumeric: "840",
     native: 58,
+    foreignBorn: 14.3,
     catholic: 19,
     protestant: 40,
     orthodox: 1,

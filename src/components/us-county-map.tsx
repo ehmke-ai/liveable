@@ -1,13 +1,16 @@
 "use client"
 
-import { geoPath, type GeoPermissibleObjects } from "d3-geo"
-import { memo, useEffect, useMemo, useState, type MouseEvent } from "react"
-import { feature, mesh } from "topojson-client"
-import type { Feature, FeatureCollection, Geometry, MultiLineString } from "geojson"
+import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import { Download } from "lucide-react"
-import type { GeometryCollection, Topology } from "topojson-specification"
 
 import { ColorChooser } from "@/components/color-chooser"
+import {
+  countyLinkHandlers,
+  CountyPaths,
+  useCountyGeometry,
+  withCtRegions,
+  type CountyMapState,
+} from "@/components/county-map-geometry"
 import { POPULATION_COLORS } from "@/components/population-stack-chart"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +22,6 @@ import {
 import { YearSlider } from "@/components/year-slider"
 import {
   COUNTY_HISTORY_URL,
-  CT_FIPS,
   foldedBreakdown,
   GROUPS,
   groupShare,
@@ -28,17 +30,8 @@ import {
   type GroupKey,
 } from "@/lib/county-history"
 
-type CountyFeature = Feature<Geometry, { name: string }> & { id?: string | number }
-type UsTopology = Topology<{ counties: GeometryCollection; states: GeometryCollection }>
-type CtRegionsTopology = Topology<{ regions: GeometryCollection }>
-
 /** [fips, display label] — the figures themselves come from county-history.json */
 export type UsCountyRow = [string, string]
-
-// Same viewBox as UsMap's state map (both use us-atlas's pre-projected albers coordinates)
-// so the two views draw the country at the same size
-const WIDTH = 960
-const HEIGHT = 600
 
 /** `id` is a stable React key, since sides can be removed from the middle */
 type Side = { id: number; groups: GroupKey[]; color: string }
@@ -49,7 +42,7 @@ const DEFAULT_SIDES: Side[] = [
 ]
 
 // Starting colors for newly added sides; each can then be changed with the custom picker
-const NEW_SIDE_COLORS = ["#ff0000", "#a52a2a", "#0000ff", "#ffa500", "#008000", "#800080", "#000000"]
+export const NEW_SIDE_COLORS =["#ff0000", "#a52a2a", "#0000ff", "#ffa500", "#008000", "#800080", "#000000"]
 
 // Groups are exclusive and every side needs one, so there can be at most one side per group
 const MAX_SIDES = GROUPS.length
@@ -93,11 +86,11 @@ function fillFor(
 }
 
 /** `t` of the way from `from` (0) to `to` (1) */
-function blend(from: string, to: string, t: number) {
+export function blend(from: string, to: string, t: number) {
   return `color-mix(in oklch, ${from}, ${to} ${Math.round(t * 100)}%)`
 }
 
-function blendStops(from: string, to: string) {
+export function blendStops(from: string, to: string) {
   return [0, 0.25, 0.5, 0.75, 1].map((t) => blend(from, to, t))
 }
 
@@ -122,49 +115,26 @@ const YEAR_SOURCES: Record<number, string> = {
   2025: "Vintage 2025 estimates, ACS 2020–2024",
 }
 
-type CountyOutline = { fips: string; d: string }
-type CountyShape = CountyOutline & { fill: string }
-
-function outlinesOf(features: CountyFeature[], path: ReturnType<typeof geoPath>): CountyOutline[] {
-  return features.flatMap((f) => {
-    const d = path(f as GeoPermissibleObjects)
-    return d ? [{ fips: String(f.id), d }] : []
-  })
-}
-
-// Memoized so hovering (which re-renders the parent) never touches the 3,000+ county paths
-const CountyPaths = memo(function CountyPaths({ shapes }: { shapes: CountyShape[] }) {
-  return shapes.map(({ fips, d, fill }) => (
-    <path
-      key={fips}
-      d={d}
-      data-fips={fips}
-      fill={fill}
-      stroke="var(--background)"
-      strokeWidth={0.25}
-      strokeLinejoin="round"
-      vectorEffect="non-scaling-stroke"
-    />
-  ))
-})
-
 export function UsCountyMap({
   counties: rows,
   states,
   years,
+  state,
+  onOpenCounty,
 }: {
   counties: UsCountyRow[]
   /** State FIPS -> USPS abbreviation, for the tooltip heading */
   states: Record<string, string>
   /** Slider years, oldest first; each must be a key of county-history.json */
   years: number[]
+  /** Draw only this state's counties, with the shading scaled to them */
+  state?: CountyMapState
+  /** Opens a county's page; with it, the counties in `counties` are clickable links */
+  onOpenCounty?: (fips: string) => void
 }) {
   const latestYear = years[years.length - 1]
-  const [features, setFeatures] = useState<CountyFeature[]>([])
-  const [ctRegions, setCtRegions] = useState<CountyFeature[]>([])
-  const [stateBorders, setStateBorders] = useState<MultiLineString | null>(null)
+  const geometry = useCountyGeometry(state)
   const [history, setHistory] = useState<CountyHistory | null>(null)
-  const [loading, setLoading] = useState(true)
   const [year, setYear] = useState(latestYear)
   const [hoveredFips, setHoveredFips] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
@@ -172,16 +142,21 @@ export function UsCountyMap({
   const [exporting, setExporting] = useState(false)
 
   const labelByFips = useMemo(() => Object.fromEntries(rows), [rows])
+  const stateFips = state ? rows[0]?.[0].slice(0, 2) : undefined
 
   const yearValues = useMemo(() => history?.[year] ?? {}, [history, year])
 
+  // On a state map, only that state's counties set the scale
   const maxLead = useMemo(() => {
     let max = 0
     for (const values of Object.values(history ?? {})) {
-      for (const v of Object.values(values)) max = Math.max(max, leaderOf(v, sides)?.lead ?? 0)
+      for (const [fips, v] of Object.entries(values)) {
+        if (stateFips && !fips.startsWith(stateFips)) continue
+        max = Math.max(max, leaderOf(v, sides)?.lead ?? 0)
+      }
     }
     return max
-  }, [history, sides])
+  }, [history, sides, stateFips])
 
   // Clicking a group puts it on that side (taking it off whichever side had it), or takes it
   // off if it's already there. No side may be left empty.
@@ -241,58 +216,26 @@ export function UsCountyMap({
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      fetch("/geo/us-counties-albers-10m.json").then((r) => r.json() as Promise<UsTopology>),
-      fetch(COUNTY_HISTORY_URL)
-        .then((r) => r.json() as Promise<CountyHistory>)
-        .catch(() => null),
-      fetch("/geo/ct-planning-regions-albers.json")
-        .then((r) => r.json() as Promise<CtRegionsTopology>)
-        .catch(() => null),
-    ])
-      .then(([topology, countyHistory, ctTopology]) => {
-        if (cancelled) return
-        const collection = feature(
-          topology,
-          topology.objects.counties
-        ) as FeatureCollection<Geometry, { name: string }>
-        setFeatures(collection.features as CountyFeature[])
-        setStateBorders(mesh(topology, topology.objects.states, (a, b) => a !== b))
-        setHistory(countyHistory)
-        if (ctTopology) {
-          const regions = feature(
-            ctTopology,
-            ctTopology.objects.regions
-          ) as FeatureCollection<Geometry, { name: string }>
-          setCtRegions(regions.features as CountyFeature[])
-        }
+    fetch(COUNTY_HISTORY_URL)
+      .then((r) => r.json() as Promise<CountyHistory>)
+      .then((countyHistory) => {
+        if (!cancelled) setHistory(countyHistory)
       })
-      .catch(() => {
-        if (!cancelled) setFeatures([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [])
 
-  const path = useMemo(() => geoPath(), [])
-
-  // Path strings are computed once; changing the year only recomputes fills
-  const countyOutlines = useMemo(() => outlinesOf(features, path), [features, path])
-  const ctRegionOutlines = useMemo(() => outlinesOf(ctRegions, path), [ctRegions, path])
+  const { width, height, counties: countyOutlines, ctRegions, regionLabels, stateBorders } = geometry
+  const loading = geometry.loading
 
   // Connecticut replaced its counties with planning regions in 2022. For years whose data is
   // keyed by region (2025), draw the regions in place of CT's old counties.
-  const useCtRegions = ctRegionOutlines.some((o) => yearValues[o.fips])
+  const useCtRegions = ctRegions.some((o) => yearValues[o.fips])
   const outlines = useMemo(
-    () =>
-      useCtRegions
-        ? [...countyOutlines.filter((o) => !o.fips.startsWith(CT_FIPS)), ...ctRegionOutlines]
-        : countyOutlines,
-    [useCtRegions, countyOutlines, ctRegionOutlines]
+    () => (useCtRegions ? withCtRegions(countyOutlines, ctRegions) : countyOutlines),
+    [useCtRegions, countyOutlines, ctRegions]
   )
 
   const shapes = useMemo(
@@ -307,12 +250,6 @@ export function UsCountyMap({
   const pathByFips = useMemo(
     () => Object.fromEntries(outlines.map((o) => [o.fips, o.d])),
     [outlines]
-  )
-
-  // Planning regions aren't in the server-rendered county list; their names come with the shapes
-  const regionLabels = useMemo(
-    () => Object.fromEntries(ctRegions.map((f) => [String(f.id), f.properties.name])),
-    [ctRegions]
   )
 
   // One listener for the whole map: read the county off the path under the cursor
@@ -339,7 +276,8 @@ export function UsCountyMap({
     (sides.flatMap((side) => side.groups).length < GROUPS.length ||
       sides.some((side) => side.groups.length > 1))
 
-  const title = `${sides.map((side) => sideTitle(side, sides)).join(" vs. ")} by county, ${year}`
+  const place = state ? ` in ${state.state}` : ""
+  const title = `${sides.map((side) => sideTitle(side, sides)).join(" vs. ")} by county${place}, ${year}`
   const leadLabel = `+${Math.round(maxLead)} pts`
   // Two sides blend into each other on one bar; more each get their own
   const diverging = sides.length === 2
@@ -372,10 +310,10 @@ export function UsCountyMap({
               }
             }),
         source,
-        mapWidth: WIDTH,
-        mapHeight: HEIGHT,
+        mapWidth: width,
+        mapHeight: height,
         shapes,
-        stateBorders: (stateBorders && path(stateBorders)) || undefined,
+        stateBorders,
         fileName: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`,
       })
     } finally {
@@ -413,20 +351,21 @@ export function UsCountyMap({
             </div>
           )}
           <svg
-            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            className="h-auto w-full touch-pan-y"
-            role="img"
+            viewBox={`0 0 ${width} ${height}`}
+            className={`h-auto w-full touch-pan-y ${state ? "max-h-[75svh]" : ""}`}
+            role={onOpenCounty ? "group" : "img"}
             aria-label={`Map: ${title}`}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => {
               setHoveredFips(null)
               setPointer(null)
             }}
+            {...countyLinkHandlers(onOpenCounty)}
           >
-            <CountyPaths shapes={shapes} />
+            <CountyPaths shapes={shapes} links={onOpenCounty ? labelByFips : undefined} />
             {stateBorders && (
               <path
-                d={path(stateBorders) ?? undefined}
+                d={stateBorders}
                 fill="none"
                 stroke="var(--background)"
                 strokeWidth={1}
@@ -458,7 +397,8 @@ export function UsCountyMap({
               }}
             >
               <div className="font-medium text-foreground">
-                {labelByFips[hoveredFips] ?? regionLabels[hoveredFips]}, {states[hoveredFips.slice(0, 2)]}
+                {labelByFips[hoveredFips] ?? regionLabels[hoveredFips]}
+                {!state && `, ${states[hoveredFips.slice(0, 2)]}`}
               </div>
               <ul className="mt-1.5 space-y-0.5 tabular-nums">
                 {foldedBreakdown(hoveredValues).map(
