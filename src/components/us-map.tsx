@@ -7,11 +7,31 @@ import { feature } from "topojson-client"
 import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson"
 import type { GeometryCollection, Topology } from "topojson-specification"
 
+import { Download } from "lucide-react"
+
+import { ColorChooser } from "@/components/color-chooser"
 import { Button } from "@/components/ui/button"
+import { UsCountyElectionMap } from "@/components/us-county-election-map"
+import type { UsCountyRow } from "@/components/us-county-map"
+import {
+  ANTI_IMMIG_COLOR,
+  divergingGradient,
+  divergingShade,
+  divergingStops,
+  downloadMapPng,
+  PRO_IMMIG_COLOR,
+  shade,
+  SHADE_RANGE,
+  shadeGradient,
+  shadeStops,
+} from "@/components/us-county-map-export"
 import { COLORS } from "@/lib/demographics"
 import {
+  ELECTION_MARGIN_CAP,
+  election2024Intensity,
   ENFORCEMENT_TIER_LABELS,
   enforcementIntensity,
+  formatElection2024,
   maxStateAntiImmig,
   maxStateNative,
   maxStateThirtyMarriedHomeowner,
@@ -28,6 +48,7 @@ import {
 } from "@/lib/states"
 
 type MapMetric =
+  | "election2024"
   | "antiImmig"
   | "enforcement"
   | "native"
@@ -98,102 +119,205 @@ function labelCentroid(
 const NO_DATA_FILL = "var(--border)"
 const NO_DATA_HOVER_FILL = "color-mix(in oklch, var(--foreground) 10%, var(--border))"
 
+type MetricConfig = {
+  title: string
+  subtitle: string
+  /** Legend heading, and the figure's name in the tooltip */
+  name: string
+  low: string
+  high: string
+  source: string
+  defaultColor: string
+  /** When set, the scale diverges: this default low-end color, neutral mid-range, the chosen color at the high end */
+  defaultLowColor?: string
+  /** Color-picker labels for the low and high ends of a diverging scale */
+  colorLabels?: [string, string]
+  /** Position in the color scale, 0 (palest) to 1 (deepest); null when the state has no figure */
+  intensity: (d: StateMapMetrics) => number | null
+  value: (d: StateMapMetrics) => string
+}
+
+const METRICS: Record<MapMetric, MetricConfig> = {
+  election2024: {
+    title: "2024 presidential election by state",
+    subtitle:
+      "Statewide popular-vote margin between Donald Trump and Kamala Harris; deeper means a wider win.",
+    name: "2024 margin",
+    low: `Harris +${ELECTION_MARGIN_CAP}`,
+    high: `Trump +${ELECTION_MARGIN_CAP}`,
+    source: "Source: certified 2024 general election results (state election offices)",
+    defaultColor: ANTI_IMMIG_COLOR,
+    defaultLowColor: PRO_IMMIG_COLOR,
+    colorLabels: ["Harris color", "Trump color"],
+    intensity: election2024Intensity,
+    value: formatElection2024,
+  },
+  antiImmig: {
+    title: "Immigration sentiment by state",
+    subtitle:
+      "Share saying newcomers from other countries threaten traditional American customs and values; the scale runs from the most pro-immigration states to the most anti.",
+    name: "Immigration sentiment",
+    low: `Pro (${minStateAntiImmig}%)`,
+    high: `Anti (${maxStateAntiImmig}%)`,
+    source: "Source: PRRI 2015 American Values Atlas (DC not surveyed)",
+    defaultColor: ANTI_IMMIG_COLOR,
+    defaultLowColor: PRO_IMMIG_COLOR,
+    intensity: (d) =>
+      d.antiImmig == null ? null : rangeIntensity(d.antiImmig, minStateAntiImmig, maxStateAntiImmig),
+    value: (d) => (d.antiImmig == null ? "no data" : `${d.antiImmig}% opposed`),
+  },
+  enforcement: {
+    title: "Immigration enforcement laws by state",
+    subtitle:
+      "State laws on ICE detainers, 287(g), information sharing, anti-sanctuary mandates, and state immigration crimes; the scale runs from the most protective states to the most enforcement.",
+    name: "ICE cooperation",
+    low: "Sanctuary protections",
+    high: "Heavy ICE cooperation",
+    source: "Source: ILRC State Map on Immigration Enforcement, July 2026",
+    defaultColor: ANTI_IMMIG_COLOR,
+    defaultLowColor: PRO_IMMIG_COLOR,
+    intensity: (d) => enforcementIntensity(d.enforcementScore),
+    value: enforcementLabel,
+  },
+  thirtyMarriedHomeowner: {
+    title: "Fishback benchmark by state",
+    subtitle:
+      "Share of 30-year-olds who are married with spouse present and own their home; the scale runs from the lowest states to the highest.",
+    name: "30, married & homeowner",
+    low: `${minStateThirtyMarriedHomeowner}%`,
+    high: `${maxStateThirtyMarriedHomeowner}%`,
+    source: "Source: U.S. Census Bureau, ACS 2024 1-year estimates",
+    defaultColor: "#004278",
+    defaultLowColor: "#E76224",
+    colorLabels: ["Low color", "High color"],
+    intensity: (d) =>
+      rangeIntensity(
+        d.thirtyMarriedHomeowner,
+        minStateThirtyMarriedHomeowner,
+        maxStateThirtyMarriedHomeowner
+      ),
+    value: (d) => `${d.thirtyMarriedHomeowner}%`,
+  },
+  wealthShareUnder30: {
+    title: "Wealth share held by residents 30 and under, by state",
+    subtitle:
+      "Estimated share of total household net wealth; the scale runs from the lowest states to the highest.",
+    name: "Wealth share, 30 & under",
+    low: `${minStateWealthShareUnder30}%`,
+    high: `${maxStateWealthShareUnder30}%`,
+    source:
+      "Sources: Fishback benchmark (ACS 2024); Federal Reserve Distributional Financial Accounts",
+    defaultColor: "#004278",
+    defaultLowColor: "#E76224",
+    colorLabels: ["Low color", "High color"],
+    intensity: (d) =>
+      rangeIntensity(d.wealthShareUnder30, minStateWealthShareUnder30, maxStateWealthShareUnder30),
+    value: (d) => `${d.wealthShareUnder30}%`,
+  },
+  native: {
+    title: "Native / European share by state",
+    subtitle: "Non-Hispanic White minus Arab ancestry, as a share of population; deeper means higher.",
+    name: "Native / European",
+    low: `${minStateNative}%`,
+    high: `${maxStateNative}%`,
+    source: "Source: U.S. Census Bureau (Vintage 2025 estimates, ACS 2024)",
+    defaultColor: "#000000",
+    intensity: (d) => rangeIntensity(d.native, minStateNative, maxStateNative),
+    value: (d) => `${d.native}%`,
+  },
+}
+
+const DEFAULT_COLORS = Object.fromEntries(
+  Object.entries(METRICS).map(([metric, config]) => [metric, config.defaultColor])
+) as Record<MapMetric, string>
+
+/** Metrics drawn on the same pro/anti-immigration scale, which share their chosen colors */
+const IMMIGRATION_METRICS: MapMetric[] = ["antiImmig", "enforcement"]
+
+/** Sets `next` for `metric`, and for every metric sharing its colors */
+function withColor<T extends Partial<Record<MapMetric, string>>>(
+  prev: T,
+  metric: MapMetric,
+  next: string
+): T {
+  const linked = IMMIGRATION_METRICS.includes(metric) ? IMMIGRATION_METRICS : [metric]
+  return { ...prev, ...Object.fromEntries(linked.map((m) => [m, next])) }
+}
+
+const DEFAULT_LOW_COLORS = Object.fromEntries(
+  Object.entries(METRICS).flatMap(([metric, config]) =>
+    config.defaultLowColor ? [[metric, config.defaultLowColor]] : []
+  )
+) as Partial<Record<MapMetric, string>>
+
+// Scaled like the county map: 15% of the chosen color at the low end, full color at the high.
+// Diverging metrics (given a `lowColor`) run from full low color through neutral to full chosen color.
 function fillFor(
   data: StateMapMetrics | undefined,
   metric: MapMetric,
-  hovered: boolean,
-  selected: boolean
+  color: string,
+  lowColor: string | undefined,
+  hovered = false,
+  selected = false
 ) {
-  if (!data || (metric === "antiImmig" && data.antiImmig == null)) {
-    return hovered ? NO_DATA_HOVER_FILL : NO_DATA_FILL
-  }
-
-  if (metric === "antiImmig") {
-    const t = rangeIntensity(data.antiImmig ?? 0, minStateAntiImmig, maxStateAntiImmig)
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(217, 120, 45, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(240, 178, 122, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(217, 120, 45, ${alpha})`
-  }
-
-  if (metric === "enforcement") {
-    const t = enforcementIntensity(data.enforcementScore)
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(194, 65, 91, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(226, 130, 150, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(194, 65, 91, ${alpha})`
-  }
-
-  if (metric === "thirtyMarriedHomeowner") {
-    const t = rangeIntensity(
-      data.thirtyMarriedHomeowner,
-      minStateThirtyMarriedHomeowner,
-      maxStateThirtyMarriedHomeowner
-    )
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(139, 92, 246, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(180, 150, 250, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(139, 92, 246, ${alpha})`
-  }
-
-  if (metric === "wealthShareUnder30") {
-    const t = rangeIntensity(
-      data.wealthShareUnder30,
-      minStateWealthShareUnder30,
-      maxStateWealthShareUnder30
-    )
-    const alpha = 0.3 + t * 0.7
-    if (selected) return `rgba(34, 197, 94, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(140, 230, 170, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(34, 197, 94, ${alpha})`
-  }
-
-  const t = rangeIntensity(data.native, minStateNative, maxStateNative)
-  const pct = Math.round(15 + t * 85)
-  if (selected) {
-    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 15)}%, var(--muted))`
-  }
-  if (hovered) {
-    return `color-mix(in oklch, var(--foreground) ${Math.min(100, pct + 8)}%, var(--muted))`
-  }
-  return `color-mix(in oklch, var(--foreground) ${pct}%, var(--muted))`
+  const t = data ? METRICS[metric].intensity(data) : null
+  if (t == null) return hovered ? NO_DATA_HOVER_FILL : NO_DATA_FILL
+  const boost = selected ? 15 : hovered ? 8 : 0
+  if (lowColor) return divergingShade(lowColor, color, t, boost)
+  const pct = Math.round(SHADE_RANGE[0] + t * (SHADE_RANGE[1] - SHADE_RANGE[0]))
+  return shade(color, Math.min(100, pct + boost))
 }
 
 function metricLabel(data: StateMapMetrics, metric: MapMetric): string {
-  if (metric === "antiImmig") return data.antiImmig == null ? "no data" : `${data.antiImmig}%`
-  if (metric === "enforcement") return enforcementLabel(data)
-  if (metric === "thirtyMarriedHomeowner") return `${data.thirtyMarriedHomeowner}%`
-  if (metric === "wealthShareUnder30") return `${data.wealthShareUnder30}%`
-  return `${data.native}%`
+  return METRICS[metric].value(data)
 }
 
 function enforcementLabel(data: StateMapMetrics): string {
   return `${ENFORCEMENT_TIER_LABELS[data.enforcementTier]} (${data.enforcementScore.toFixed(1)})`
 }
 
-function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): string {
-  if (selected) {
-    if (metric === "antiImmig") return "#f0b27a"
-    if (metric === "enforcement") return "#e8899c"
-    if (metric === "thirtyMarriedHomeowner") return "#c4b5fd"
-    if (metric === "wealthShareUnder30") return "#86efac"
-    return "var(--foreground)"
-  }
+function strokeFor(selected: boolean, hovered: boolean): string {
+  if (selected) return "var(--foreground)"
   if (hovered) return "color-mix(in oklch, var(--foreground) 55%, var(--background))"
   return "var(--background)"
 }
 
+/** The map tabs: the state metrics, plus views that only exist at county level */
+type MapView = MapMetric | "election2024County"
+
+type ElectionLevel = "county" | "state"
+
 /**
  * `countyMap` replaces the state map while Demographics is selected (the county-level
- * UsCountyMap). It stays mounted when hidden so its year slider keeps its position.
+ * UsCountyMap), and the county-level UsCountyElectionMap while 2024 election is shown by county. Both stay mounted when hidden so
+ * they keep their state.
  */
-export function UsMap({ countyMap }: { countyMap: ReactNode }) {
+export function UsMap({
+  countyMap,
+  electionCounties,
+}: {
+  countyMap: ReactNode
+  /** County labels and state abbreviations for the county-level 2024 election map */
+  electionCounties: { counties: UsCountyRow[]; states: Record<string, string> }
+}) {
   const [features, setFeatures] = useState<StateFeature[]>([])
-  const [metric, setMetric] = useState<MapMetric>("native")
+  const [view, setView] = useState<MapView>("native")
+  // Which level the 2024 election tab shows; remembered when switching away and back
+  const [electionLevel, setElectionLevel] = useState<ElectionLevel>("county")
+  // County-only views hide the state map, so any state metric will do behind them
+  const metric: MapMetric = view === "election2024County" ? "native" : view
+  const electionActive = view === "election2024" || view === "election2024County"
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [colors, setColors] = useState<Record<MapMetric, string>>(DEFAULT_COLORS)
+  const [lowColors, setLowColors] = useState(DEFAULT_LOW_COLORS)
+  const [exporting, setExporting] = useState(false)
+  const color = colors[metric]
+  const config = METRICS[metric]
+  const lowColor = lowColors[metric]
+  const [lowColorLabel, highColorLabel] = config.colorLabels ?? ["Pro color", "Anti color"]
 
   function updatePointer(e: MouseEvent<SVGPathElement>) {
     const svg = e.currentTarget.ownerSVGElement
@@ -247,7 +371,77 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
   const selected = selectedId ? stateMapByAbbr[FIPS_TO_ABBR[selectedId]] : undefined
   const detail = selected ?? hovered
   const detailPage = detail ? stateNavByAbbr[detail.abbr] : undefined
-  const showCounties = metric === "native"
+  const showCounties = view === "native"
+  const showElection = view === "election2024County"
+  const showStates = !showCounties && !showElection
+
+  const labels = useMemo(
+    () =>
+      features.flatMap((f) => {
+        const abbr = FIPS_TO_ABBR[isoKey(f.id)]
+        if (!abbr || UNLABELED_ABBRS.has(abbr)) return []
+        const centroid = labelCentroid(path, f)
+        return centroid ? [{ abbr, x: centroid[0], y: centroid[1] }] : []
+      }),
+    [features, path]
+  )
+
+  async function handleDownload() {
+    setExporting(true)
+    try {
+      await downloadMapPng({
+        title: config.title,
+        subtitle: config.subtitle,
+        legend: [
+          {
+            name: config.name,
+            stops: lowColor ? divergingStops(lowColor, color) : shadeStops(color),
+            low: config.low,
+            high: config.high,
+          },
+        ],
+        noData: metric === "antiImmig",
+        source: config.source,
+        mapWidth: WIDTH,
+        mapHeight: HEIGHT,
+        shapes: features.flatMap((f) => {
+          const d = path(f as GeoPermissibleObjects)
+          const abbr = FIPS_TO_ABBR[isoKey(f.id)]
+          const data = abbr ? stateMapByAbbr[abbr] : undefined
+          return d ? [{ d, fill: fillFor(data, metric, color, lowColor) }] : []
+        }),
+        shapeStroke: 1,
+        labels: labels.map(({ abbr, x, y }) => ({ x, y, text: abbr })),
+        fileName: `${config.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`,
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // Sits beside the legend on both 2024 election maps
+  const electionLevelToggle = (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground">Show by</span>
+      <div className="inline-flex gap-1" role="group" aria-label="2024 election level">
+        {(["county", "state"] as const).map((level) => (
+          <Button
+            key={level}
+            type="button"
+            size="xs"
+            variant={electionLevel === level ? "default" : "secondary"}
+            aria-pressed={electionLevel === level}
+            onClick={() => {
+              setElectionLevel(level)
+              setView(level === "county" ? "election2024County" : "election2024")
+            }}
+          >
+            {level === "county" ? "County" : "State"}
+          </Button>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-4">
@@ -255,40 +449,48 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
         <Button
           type="button"
           size="sm"
-          variant={metric === "native" ? "default" : "secondary"}
-          onClick={() => setMetric("native")}
+          variant={view === "native" ? "default" : "secondary"}
+          onClick={() => setView("native")}
         >
           Demographics
         </Button>
         <Button
           type="button"
           size="sm"
-          variant={metric === "antiImmig" ? "default" : "secondary"}
-          onClick={() => setMetric("antiImmig")}
+          variant={electionActive ? "default" : "secondary"}
+          onClick={() => setView(electionLevel === "county" ? "election2024County" : "election2024")}
         >
-          Anti-immigration sentiment
+          2024 election
         </Button>
         <Button
           type="button"
           size="sm"
-          variant={metric === "enforcement" ? "default" : "secondary"}
-          onClick={() => setMetric("enforcement")}
+          variant={view === "antiImmig" ? "default" : "secondary"}
+          onClick={() => setView("antiImmig")}
+        >
+          Immigration sentiment
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={view === "enforcement" ? "default" : "secondary"}
+          onClick={() => setView("enforcement")}
         >
           Enforcement laws &amp; ICE
         </Button>
         <Button
           type="button"
           size="sm"
-          variant={metric === "thirtyMarriedHomeowner" ? "default" : "secondary"}
-          onClick={() => setMetric("thirtyMarriedHomeowner")}
+          variant={view === "thirtyMarriedHomeowner" ? "default" : "secondary"}
+          onClick={() => setView("thirtyMarriedHomeowner")}
         >
           Fishback benchmark
         </Button>
         <Button
           type="button"
           size="sm"
-          variant={metric === "wealthShareUnder30" ? "default" : "secondary"}
-          onClick={() => setMetric("wealthShareUnder30")}
+          variant={view === "wealthShareUnder30" ? "default" : "secondary"}
+          onClick={() => setView("wealthShareUnder30")}
         >
           Wealth share (30 &amp; under)
         </Button>
@@ -303,75 +505,96 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
         </div>
       </div>
 
-      <div
-        className={`grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start ${showCounties ? "hidden" : ""}`}
-      >
-        <div className="relative">
-          {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
-              Loading map…
-            </div>
-          )}
-          <svg
-            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            className="h-auto w-full touch-pan-y"
-            role="img"
-            aria-label="Interactive map of the United States showing demographic metrics"
+      <div className={showElection ? undefined : "hidden"}>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <UsCountyElectionMap {...electionCounties} legendExtra={electionLevelToggle} />
+          <div className="hidden sm:block sm:w-32" aria-hidden />
+        </div>
+      </div>
+
+      {/* Title, map, legend, and source sit together so a screenshot of this block stands alone */}
+      <figure className={`space-y-3 bg-background ${showStates ? "" : "hidden"}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-balance text-foreground sm:text-lg">
+              {config.title}
+            </h3>
+            <p className="text-xs text-muted-foreground">{config.subtitle}</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            disabled={loading || exporting}
           >
-            {orderedFeatures.map((f) => {
-              const id = isoKey(f.id)
-              const abbr = FIPS_TO_ABBR[id]
-              const data = abbr ? stateMapByAbbr[abbr] : undefined
-              const isHovered = hoveredId === id
-              const isSelected = selectedId === id
-              const d = path(f as GeoPermissibleObjects)
-              if (!d) return null
+            <Download aria-hidden />
+            {exporting ? "Saving…" : "PNG"}
+          </Button>
+        </div>
 
-              return (
-                <path
-                  key={id || f.properties.name}
-                  d={d}
-                  fill={fillFor(data, metric, isHovered, isSelected)}
-                  stroke={strokeFor(metric, isSelected, isHovered)}
-                  strokeWidth={isSelected ? 1.75 : isHovered ? 1.5 : 1}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                  className={`${data ? "cursor-pointer" : "cursor-default"} transition-[fill,stroke-width] duration-150`}
-                  onMouseEnter={(e) => {
-                    setHoveredId(id)
-                    updatePointer(e)
-                  }}
-                  onMouseMove={updatePointer}
-                  onMouseLeave={() => {
-                    setHoveredId(null)
-                    setPointer(null)
-                  }}
-                  onClick={() => {
-                    if (!data) return
-                    setSelectedId((prev) => (prev === id ? null : id))
-                  }}
-                >
-                  <title>
-                    {data
-                      ? `${data.state}: ${metricLabel(data, metric)}`
-                      : `${f.properties.name}: no data`}
-                  </title>
-                </path>
-              )
-            })}
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <div className="relative">
+            {loading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
+                Loading map…
+              </div>
+            )}
+            <svg
+              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+              className="h-auto w-full touch-pan-y"
+              role="img"
+              aria-label={`Map: ${config.title}`}
+            >
+              {orderedFeatures.map((f) => {
+                const id = isoKey(f.id)
+                const abbr = FIPS_TO_ABBR[id]
+                const data = abbr ? stateMapByAbbr[abbr] : undefined
+                const isHovered = hoveredId === id
+                const isSelected = selectedId === id
+                const d = path(f as GeoPermissibleObjects)
+                if (!d) return null
 
-            {/* Labels in a separate pass so hovered/selected states drawn later don't cover them */}
-            {features.map((f) => {
-              const abbr = FIPS_TO_ABBR[isoKey(f.id)]
-              if (!abbr || UNLABELED_ABBRS.has(abbr)) return null
-              const centroid = labelCentroid(path, f)
-              if (!centroid) return null
-              return (
+                return (
+                  <path
+                    key={id || f.properties.name}
+                    d={d}
+                    fill={fillFor(data, metric, color, lowColor, isHovered, isSelected)}
+                    stroke={strokeFor(isSelected, isHovered)}
+                    strokeWidth={isSelected ? 1.75 : isHovered ? 1.5 : 1}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                    className={`${data ? "cursor-pointer" : "cursor-default"} transition-[fill,stroke-width] duration-150`}
+                    onMouseEnter={(e) => {
+                      setHoveredId(id)
+                      updatePointer(e)
+                    }}
+                    onMouseMove={updatePointer}
+                    onMouseLeave={() => {
+                      setHoveredId(null)
+                      setPointer(null)
+                    }}
+                    onClick={() => {
+                      if (!data) return
+                      setSelectedId((prev) => (prev === id ? null : id))
+                    }}
+                  >
+                    <title>
+                      {data
+                        ? `${data.state}: ${metricLabel(data, metric)}`
+                        : `${f.properties.name}: no data`}
+                    </title>
+                  </path>
+                )
+              })}
+
+              {/* Labels in a separate pass so hovered/selected states drawn later don't cover them */}
+              {labels.map(({ abbr, x, y }) => (
                 <text
                   key={abbr}
-                  x={centroid[0]}
-                  y={centroid[1]}
+                  x={x}
+                  y={y}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   paintOrder="stroke"
@@ -383,99 +606,86 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
                 >
                   {abbr}
                 </text>
+              ))}
+            </svg>
+
+            {hoveredId && pointer && (
+              <div
+                className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
+                style={{
+                  left: `min(${pointer.x}%, calc(100% - 10rem))`,
+                  top: `max(${pointer.y - 2}%, 0.5rem)`,
+                  transform: "translateY(-100%)",
+                }}
+              >
+                {hovered ? (
+                  <>
+                    <div className="font-medium text-foreground">{hovered.state}</div>
+                    <div className="tabular-nums text-muted-foreground">
+                      {config.name}{" "}
+                      <span className="font-medium text-foreground">{metricLabel(hovered, metric)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="font-medium text-foreground">No data</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-border sm:w-32">
+            {SIDEBAR_ABBRS.map((abbr) => {
+              const id = ABBR_TO_FIPS[abbr]
+              const data = stateMapByAbbr[abbr]
+              const isHovered = hoveredId === id
+              const isSelected = selectedId === id
+              return (
+                <button
+                  key={abbr}
+                  type="button"
+                  title={data ? `${data.state}: ${metricLabel(data, metric)}` : abbr}
+                  className="block w-full cursor-pointer border-b border-border/60 px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wide text-foreground transition-colors last:border-b-0"
+                  style={{ background: fillFor(data, metric, color, lowColor, isHovered, isSelected) }}
+                  onMouseEnter={() => setHoveredId(id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  onClick={() => setSelectedId((prev) => (prev === id ? null : id))}
+                >
+                  <span
+                    className="rounded-[3px] px-1"
+                    style={{ background: "color-mix(in oklch, var(--background) 70%, transparent)" }}
+                  >
+                    {abbr}
+                  </span>
+                </button>
               )
             })}
-          </svg>
+          </div>
+        </div>
 
-          {hoveredId && pointer && (
+        <figcaption className="flex flex-wrap items-end gap-x-6 gap-y-3 text-xs">
+          <div className="w-48 space-y-1">
+            <div className="font-medium text-foreground">{config.name}</div>
             <div
-              className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-md"
+              className="h-2.5 border border-border"
               style={{
-                left: `min(${pointer.x}%, calc(100% - 10rem))`,
-                top: `max(${pointer.y - 2}%, 0.5rem)`,
-                transform: "translateY(-100%)",
+                background: lowColor
+                  ? divergingGradient(lowColor, color)
+                  : shadeGradient(color),
               }}
-            >
-              {hovered ? (
-                <>
-                  <div className="font-medium text-foreground">{hovered.state}</div>
-                  <div className="tabular-nums text-muted-foreground">
-                    {metric === "antiImmig" ? (
-                      hovered.antiImmig == null ? (
-                        "No survey data"
-                      ) : (
-                        <>
-                          Opposition{" "}
-                          <span style={{ color: COLORS.anti }}>{hovered.antiImmig}%</span>
-                        </>
-                      )
-                    ) : metric === "enforcement" ? (
-                      <>
-                        <span style={{ color: COLORS.enforcement }}>
-                          {ENFORCEMENT_TIER_LABELS[hovered.enforcementTier]}
-                        </span>{" "}
-                        · ILRC {hovered.enforcementScore.toFixed(1)}
-                      </>
-                    ) : metric === "thirtyMarriedHomeowner" ? (
-                      <>
-                        30, married &amp; homeowner{" "}
-                        <span style={{ color: COLORS.thirtyMarriedHomeowner }}>
-                          {hovered.thirtyMarriedHomeowner}%
-                        </span>
-                      </>
-                    ) : metric === "wealthShareUnder30" ? (
-                      <>
-                        Wealth share, 30 &amp; under{" "}
-                        <span style={{ color: COLORS.wealthShareUnder30 }}>
-                          {hovered.wealthShareUnder30}%
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        Native / European{" "}
-                        <span style={{ color: COLORS.native }}>{hovered.native}%</span>
-                      </>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="font-medium text-foreground">No data</div>
-              )}
+            />
+            <div className="flex justify-between gap-2 tabular-nums text-muted-foreground">
+              <span>{config.low}</span>
+              <span className="text-right">{config.high}</span>
             </div>
-          )}
-        </div>
-
-        <div className="overflow-hidden rounded-lg border border-border sm:w-32">
-          {SIDEBAR_ABBRS.map((abbr) => {
-            const id = ABBR_TO_FIPS[abbr]
-            const data = stateMapByAbbr[abbr]
-            const isHovered = hoveredId === id
-            const isSelected = selectedId === id
-            return (
-              <button
-                key={abbr}
-                type="button"
-                title={data ? `${data.state}: ${metricLabel(data, metric)}` : abbr}
-                className="block w-full cursor-pointer border-b border-border/60 px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wide text-foreground transition-colors last:border-b-0"
-                style={{ background: fillFor(data, metric, isHovered, isSelected) }}
-                onMouseEnter={() => setHoveredId(id)}
-                onMouseLeave={() => setHoveredId(null)}
-                onClick={() => setSelectedId((prev) => (prev === id ? null : id))}
-              >
-                <span
-                  className="rounded-[3px] px-1"
-                  style={{ background: "color-mix(in oklch, var(--background) 70%, transparent)" }}
-                >
-                  {abbr}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+          </div>
+          {metric === "antiImmig" && <LegendSwatch color={NO_DATA_FILL} label="No data" />}
+          {metric === "election2024" && electionLevelToggle}
+          <span className="ml-auto text-muted-foreground">{config.source}</span>
+        </figcaption>
+      </figure>
 
       <div
-        className={`grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start ${showCounties ? "hidden" : ""}`}
+        className={`grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start ${showStates ? "" : "hidden"}`}
       >
         <div className="rounded-lg border border-border bg-card/40 px-4 py-3 text-sm">
           {detail ? (
@@ -512,6 +722,11 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
               </div>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 tabular-nums sm:grid-cols-4">
                 <Stat
+                  label="2024 presidential vote"
+                  value={formatElection2024(detail)}
+                  color={detail.trump2024 >= detail.harris2024 ? ANTI_IMMIG_COLOR : PRO_IMMIG_COLOR}
+                />
+                <Stat
                   label="Anti-immigration sentiment"
                   value={detail.antiImmig == null ? "—" : `${detail.antiImmig}%`}
                   color={COLORS.anti}
@@ -542,50 +757,19 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
           )}
         </div>
 
-        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:min-w-[10rem]">
-          <span className="font-medium text-foreground">Legend</span>
-          {metric === "antiImmig" ? (
-            <>
-              <LegendSwatch color="rgba(217,120,45,0.3)" label={`Lower opposition (${minStateAntiImmig}%)`} />
-              <LegendSwatch color="rgba(217,120,45,1)" label={`Higher opposition (${maxStateAntiImmig}%)`} />
-            </>
-          ) : metric === "enforcement" ? (
-            <>
-              <LegendSwatch color="rgba(194,65,91,0.3)" label="Sanctuary protections" />
-              <LegendSwatch color="rgba(194,65,91,1)" label="Heavy ICE cooperation" />
-            </>
-          ) : metric === "thirtyMarriedHomeowner" ? (
-            <>
-              <LegendSwatch
-                color="rgba(139,92,246,0.3)"
-                label={`Lower share (${minStateThirtyMarriedHomeowner}%)`}
-              />
-              <LegendSwatch
-                color="rgba(139,92,246,1)"
-                label={`Higher share (${maxStateThirtyMarriedHomeowner}%)`}
-              />
-            </>
-          ) : metric === "wealthShareUnder30" ? (
-            <>
-              <LegendSwatch
-                color="rgba(34,197,94,0.3)"
-                label={`Lower share (${minStateWealthShareUnder30}%)`}
-              />
-              <LegendSwatch
-                color="rgba(34,197,94,1)"
-                label={`Higher share (${maxStateWealthShareUnder30}%)`}
-              />
-            </>
-          ) : (
-            <>
-              <LegendSwatch
-                color="color-mix(in oklch, var(--foreground) 15%, var(--muted))"
-                label={`Lower native share (${minStateNative}%)`}
-              />
-              <LegendSwatch color="var(--foreground)" label={`Higher native share (${maxStateNative}%)`} />
-            </>
+        <div className="space-y-3 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm">
+          {lowColor && (
+            <MapColorControl
+              label={lowColorLabel}
+              color={lowColor}
+              onChange={(next) => setLowColors((prev) => withColor(prev, metric, next))}
+            />
           )}
-          {metric === "antiImmig" && <LegendSwatch color={NO_DATA_FILL} label="No data" />}
+          <MapColorControl
+            label={lowColor ? highColorLabel : "Map color"}
+            color={color}
+            onChange={(next) => setColors((prev) => withColor(prev, metric, next))}
+          />
         </div>
       </div>
 
@@ -598,7 +782,8 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
         Immigration Enforcement, July 2026).
         Demographics: county shares of the same groups as the state ethnic chart — European
         (non-Hispanic White minus Arab ancestry), Hispanic, African (non-Hispanic Black), Indian,
-        East Asian, Arab, and Other (Census county estimates for 1990; decennial census and
+        East Asian, Arab, Native American (non-Hispanic American Indian and Alaska Native), and
+        Other (Census county estimates for 1990; decennial census and
         ancestry tables for 2000 and 2010; ACS 2016–2020 for 2020; Census Vintage 2025
         estimates with ACS 2020–2024 Asian-group and ancestry shares for 2025). The 1990 county data has no
         Indian, East Asian, or Arab figures (they are counted in Other and European that year),
@@ -611,7 +796,11 @@ export function UsMap({ countyMap }: { countyMap: ReactNode }) {
         age, marital status, and tenure. Wealth share (30 &amp; under): estimated share of total
         household net wealth held by residents aged 30 and under, derived from the Fishback
         benchmark and Federal Reserve Distributional Financial Accounts under-35 wealth shares.
-        State-level colors are scaled to the range across states.
+        2024 election (by state): statewide popular-vote shares for Donald Trump and Kamala
+        Harris in the 2024 presidential general election (certified results; third-party votes
+        make up the remainder). Margins of {ELECTION_MARGIN_CAP} points or more take the deepest
+        shade. Maine and Nebraska split electoral votes by district; the map shows the statewide
+        vote. State-level colors are scaled to the range across states.
       </p>
     </div>
   )
@@ -624,6 +813,30 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
       <dd className="font-medium" style={{ color }}>
         {value}
       </dd>
+    </div>
+  )
+}
+
+function MapColorControl({
+  label,
+  color,
+  onChange,
+}: {
+  label: string
+  color: string
+  onChange: (color: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <i
+          className="inline-block size-3 shrink-0 rounded-[3px] border border-border"
+          style={{ background: color }}
+          aria-hidden
+        />
+        <span className="font-medium text-foreground">{label}</span>
+      </div>
+      <ColorChooser color={color} onChange={onChange} label={label} />
     </div>
   )
 }

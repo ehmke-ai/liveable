@@ -99,6 +99,8 @@ export const rankedByAntiImmig = [...demographicsData].sort(
 
 export const maxAntiImmig = Math.max(...rankedByAntiImmig.map((d) => d.antiImmig))
 
+export const minAntiImmig = Math.min(...rankedByAntiImmig.map((d) => d.antiImmig))
+
 export const rankedByMarketCap = [...demographicsData].sort(
   (a, b) => b.marketCap - a.marketCap
 )

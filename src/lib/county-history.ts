@@ -10,17 +10,34 @@ export const COUNTY_HISTORY_YEARS = [1990, 2000, 2010, 2020, 2025]
 export const COUNTY_HISTORY_URL = "/data/county-history.json"
 
 /**
- * [european, hispanic, african, indian, eastAsian, arab] % of population, the same groups as the
- * state ethnic chart; Other is the remainder. Indian, East Asian, and Arab are null in 1990.
+ * [european, hispanic, african, indian, eastAsian, arab, nativeAmerican] % of population, the same
+ * groups as the state ethnic chart; Other is the remainder. Indian, East Asian, and Arab are null
+ * in 1990.
  */
-export type CountyValues = [number, number, number, number | null, number | null, number | null]
+export type CountyValues = [
+  number,
+  number,
+  number,
+  number | null,
+  number | null,
+  number | null,
+  number,
+]
 
 /** Year -> FIPS -> CountyValues, from scripts/build-county-history.py */
 export type CountyHistory = Record<string, Record<string, CountyValues>>
 
 export type GroupKey = PopulationGroup | "other"
 
-const VALUE_ORDER: PopulationGroup[] = ["european", "hispanic", "african", "indian", "eastAsian", "arab"]
+const VALUE_ORDER: PopulationGroup[] = [
+  "european",
+  "hispanic",
+  "african",
+  "indian",
+  "eastAsian",
+  "arab",
+  "nativeAmerican",
+]
 
 export const GROUPS: { key: GroupKey; label: string }[] = [
   ...VALUE_ORDER.map((key) => ({ key, label: POPULATION_GROUP_LABELS[key] })),

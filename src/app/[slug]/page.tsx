@@ -81,6 +81,7 @@ export default async function CountryPage({
 
   const rankings = getCountryRankings(country.country)
   const isUnitedStates = country.country === "United States"
+  const countyMapData = isUnitedStates ? usCountyMapData() : null
 
   const snapshotCard = (
     <Card className="border-border bg-card shadow-none">
@@ -120,11 +121,12 @@ export default async function CountryPage({
 
       {!isUnitedStates && snapshotCard}
 
-      {isUnitedStates && (
+      {countyMapData && (
         <>
 
           <UsMap
-            countyMap={<UsCountyMap {...usCountyMapData()} years={COUNTY_HISTORY_YEARS} />}
+            countyMap={<UsCountyMap {...countyMapData} years={COUNTY_HISTORY_YEARS} />}
+            electionCounties={countyMapData}
           />
 
           <header className="mt-12 mb-7">

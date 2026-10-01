@@ -17,7 +17,12 @@ export type PopulationPoint = {
   /** Black or African American */
   african: number
   hispanic: number
-  /** Everyone else: Southeast, other South and Central Asian, American Indian, Pacific Islander, multiracial */
+  /**
+   * American Indian and Alaska Native alone. Non-Hispanic from 2000; before 2000 the Census
+   * didn't cross it with Hispanic origin, so it includes Hispanic American Indians.
+   */
+  nativeAmerican: number
+  /** Everyone else: Southeast, other South and Central Asian, Pacific Islander, multiracial */
   other: number
 }
 
@@ -31,6 +36,7 @@ export const POPULATION_GROUP_LABELS: Record<PopulationGroup, string> = {
   indian: "Indian",
   eastAsian: "East Asian",
   arab: "Arab",
+  nativeAmerican: "Native American",
 }
 
 /** Groups below this share in the latest year fold into "Other" on the chart */
@@ -55,6 +61,8 @@ export type CountyDemographics = {
   hispanicPct: number
   /** Black or African American alone, % of county population (not Hispanic-origin-exclusive) */
   blackPct: number
+  /** American Indian and Alaska Native alone, % of county population (not Hispanic-origin-exclusive) */
+  aianPct: number
   /** Asian alone, % of county population (not Hispanic-origin-exclusive) */
   asianPct: number
 }
@@ -64,7 +72,7 @@ export type CountyEthnicBreakdown = Record<PopulationGroup, number> & { other: n
 /**
  * Approximates a county's ethnic makeup using the same categories as the state's
  * "Population by ethnic group" chart (see PopulationPoint above). Hispanic, African (Black
- * alone), and Asian alone come straight from ACS county tables; Asian is split into
+ * alone), Native American (American Indian and Alaska Native alone), and Asian alone come straight from ACS county tables; Asian is split into
  * Indian/East Asian using the state's own latest ratio between those two groups, since no
  * county-level ancestry breakdown is published. Arab ancestry isn't tabulated at county
  * granularity for most counties, so it's folded into `other` rather than estimated.
@@ -82,15 +90,16 @@ export function countyEthnicBreakdown(
   const european = county.nonHispanicWhitePct
   const hispanic = county.hispanicPct
   const african = county.blackPct
+  const nativeAmerican = county.aianPct
   const indian = Math.round(county.asianPct * indianRatio * 10) / 10
   const eastAsian = Math.round((county.asianPct - indian) * 10) / 10
   const arab = 0
   const other = Math.max(
     0,
-    Math.round((100 - european - hispanic - african - indian - eastAsian) * 10) / 10
+    Math.round((100 - european - hispanic - african - nativeAmerican - indian - eastAsian) * 10) / 10
   )
 
-  return { european, hispanic, african, indian, eastAsian, arab, other }
+  return { european, hispanic, african, indian, eastAsian, arab, nativeAmerican, other }
 }
 
 export const countySlug = slugify
@@ -239,60 +248,64 @@ export type StateMapMetrics = {
    * Financial Accounts national under-35 wealth shares.
    */
   wealthShareUnder30: number
+  /** 2024 presidential election, % of the statewide popular vote for Trump (certified results) */
+  trump2024: number
+  /** 2024 presidential election, % of the statewide popular vote for Harris (certified results) */
+  harris2024: number
 }
 
 export const stateMapData: StateMapMetrics[] = [
-  { state: "Alabama", abbr: "AL", native: 62, antiImmig: 47, gdp: 341, enforcementScore: 2.2, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8 },
-  { state: "Alaska", abbr: "AK", native: 57, antiImmig: 30, gdp: 75, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6 },
-  { state: "Arizona", abbr: "AZ", native: 51, antiImmig: 31, gdp: 598, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "Arkansas", abbr: "AR", native: 67, antiImmig: 44, gdp: 198, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 33, wealthShareUnder30: 7 },
-  { state: "California", abbr: "CA", native: 32, antiImmig: 26, gdp: 4251, enforcementScore: 4.0, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 16, wealthShareUnder30: 4 },
-  { state: "Colorado", abbr: "CO", native: 63, antiImmig: 29, gdp: 584, enforcementScore: 3.8, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6 },
-  { state: "Connecticut", abbr: "CT", native: 60, antiImmig: 30, gdp: 376, enforcementScore: 3.5, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 24, wealthShareUnder30: 5 },
-  { state: "Delaware", abbr: "DE", native: 56, antiImmig: 30, gdp: 117, enforcementScore: 3.1, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 25, wealthShareUnder30: 6 },
-  { state: "District of Columbia", abbr: "DC", native: 37, antiImmig: null, gdp: 193, enforcementScore: 3.5, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 8, wealthShareUnder30: 2 },
-  { state: "Florida", abbr: "FL", native: 49, antiImmig: 36, gdp: 1835, enforcementScore: 1.7, enforcementTier: "mostFarReaching", thirtyMarriedHomeowner: 24, wealthShareUnder30: 5 },
-  { state: "Georgia", abbr: "GA", native: 47, antiImmig: 35, gdp: 925, enforcementScore: 2.5, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "Hawaii", abbr: "HI", native: 21, antiImmig: 21, gdp: 125, enforcementScore: 3.2, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 18, wealthShareUnder30: 4 },
-  { state: "Idaho", abbr: "ID", native: 78, antiImmig: 41, gdp: 136, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 38, wealthShareUnder30: 8 },
-  { state: "Illinois", abbr: "IL", native: 56, antiImmig: 33, gdp: 1202, enforcementScore: 4.3, enforcementTier: "mostProtective", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "Indiana", abbr: "IN", native: 73, antiImmig: 40, gdp: 545, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8 },
-  { state: "Iowa", abbr: "IA", native: 81, antiImmig: 39, gdp: 277, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 37, wealthShareUnder30: 8 },
-  { state: "Kansas", abbr: "KS", native: 71, antiImmig: 36, gdp: 241, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 33, wealthShareUnder30: 7 },
-  { state: "Kentucky", abbr: "KY", native: 79, antiImmig: 44, gdp: 307, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 32, wealthShareUnder30: 7 },
-  { state: "Louisiana", abbr: "LA", native: 54, antiImmig: 39, gdp: 340, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 28, wealthShareUnder30: 6 },
-  { state: "Maine", abbr: "ME", native: 89, antiImmig: 40, gdp: 103, enforcementScore: 3.8, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 28, wealthShareUnder30: 6 },
-  { state: "Maryland", abbr: "MD", native: 45, antiImmig: 33, gdp: 568, enforcementScore: 3.6, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 24, wealthShareUnder30: 5 },
-  { state: "Massachusetts", abbr: "MA", native: 65, antiImmig: 26, gdp: 820, enforcementScore: 3.7, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 19, wealthShareUnder30: 4 },
-  { state: "Michigan", abbr: "MI", native: 70, antiImmig: 38, gdp: 730, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6 },
-  { state: "Minnesota", abbr: "MN", native: 74, antiImmig: 38, gdp: 531, enforcementScore: 3.1, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 31, wealthShareUnder30: 7 },
-  { state: "Mississippi", abbr: "MS", native: 54, antiImmig: 43, gdp: 165, enforcementScore: 2.1, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6 },
-  { state: "Missouri", abbr: "MO", native: 75, antiImmig: 36, gdp: 468, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 31, wealthShareUnder30: 7 },
-  { state: "Montana", abbr: "MT", native: 83, antiImmig: 39, gdp: 82, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 33, wealthShareUnder30: 7 },
-  { state: "Nebraska", abbr: "NE", native: 73, antiImmig: 36, gdp: 198, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 35, wealthShareUnder30: 8 },
-  { state: "Nevada", abbr: "NV", native: 42, antiImmig: 38, gdp: 281, enforcementScore: 3.1, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 22, wealthShareUnder30: 5 },
-  { state: "New Hampshire", abbr: "NH", native: 86, antiImmig: 40, gdp: 126, enforcementScore: 2.5, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6 },
-  { state: "New Jersey", abbr: "NJ", native: 48, antiImmig: 27, gdp: 887, enforcementScore: 3.9, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 22, wealthShareUnder30: 5 },
-  { state: "New Mexico", abbr: "NM", native: 35, antiImmig: 30, gdp: 153, enforcementScore: 3.2, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 22, wealthShareUnder30: 5 },
-  { state: "New York", abbr: "NY", native: 51, antiImmig: 27, gdp: 2468, enforcementScore: 3.7, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 17, wealthShareUnder30: 4 },
-  { state: "North Carolina", abbr: "NC", native: 58, antiImmig: 37, gdp: 894, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "North Dakota", abbr: "ND", native: 80, antiImmig: 39, gdp: 82, enforcementScore: 2.7, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 36, wealthShareUnder30: 8 },
-  { state: "Ohio", abbr: "OH", native: 74, antiImmig: 40, gdp: 967, enforcementScore: 2.9, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 30, wealthShareUnder30: 7 },
-  { state: "Oklahoma", abbr: "OK", native: 58, antiImmig: 38, gdp: 274, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 30, wealthShareUnder30: 7 },
-  { state: "Oregon", abbr: "OR", native: 69, antiImmig: 28, gdp: 343, enforcementScore: 4.3, enforcementTier: "mostProtective", thirtyMarriedHomeowner: 25, wealthShareUnder30: 6 },
-  { state: "Pennsylvania", abbr: "PA", native: 71, antiImmig: 38, gdp: 1056, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 28, wealthShareUnder30: 6 },
-  { state: "Rhode Island", abbr: "RI", native: 66, antiImmig: 29, gdp: 84, enforcementScore: 3.3, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 21, wealthShareUnder30: 5 },
-  { state: "South Carolina", abbr: "SC", native: 62, antiImmig: 38, gdp: 379, enforcementScore: 2.5, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "South Dakota", abbr: "SD", native: 78, antiImmig: 43, gdp: 81, enforcementScore: 3.0, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 35, wealthShareUnder30: 8 },
-  { state: "Tennessee", abbr: "TN", native: 69, antiImmig: 43, gdp: 590, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6 },
-  { state: "Texas", abbr: "TX", native: 37, antiImmig: 34, gdp: 2904, enforcementScore: 1.6, enforcementTier: "mostFarReaching", thirtyMarriedHomeowner: 25, wealthShareUnder30: 6 },
-  { state: "Utah", abbr: "UT", native: 73, antiImmig: 33, gdp: 316, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 41, wealthShareUnder30: 9 },
-  { state: "Vermont", abbr: "VT", native: 89, antiImmig: 35, gdp: 48, enforcementScore: 3.9, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "Virginia", abbr: "VA", native: 56, antiImmig: 35, gdp: 798, enforcementScore: 3.3, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "Washington", abbr: "WA", native: 60, antiImmig: 31, gdp: 895, enforcementScore: 3.9, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6 },
-  { state: "West Virginia", abbr: "WV", native: 88, antiImmig: 47, gdp: 109, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6 },
-  { state: "Wisconsin", abbr: "WI", native: 77, antiImmig: 37, gdp: 473, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 32, wealthShareUnder30: 7 },
-  { state: "Wyoming", abbr: "WY", native: 81, antiImmig: 48, gdp: 53, enforcementScore: 2.9, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8 },
+  { state: "Alabama", abbr: "AL", native: 62, antiImmig: 47, gdp: 341, enforcementScore: 2.2, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8, trump2024: 64.6, harris2024: 34.1 },
+  { state: "Alaska", abbr: "AK", native: 57, antiImmig: 30, gdp: 75, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6, trump2024: 54.5, harris2024: 41.4 },
+  { state: "Arizona", abbr: "AZ", native: 51, antiImmig: 31, gdp: 598, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 52.2, harris2024: 46.7 },
+  { state: "Arkansas", abbr: "AR", native: 67, antiImmig: 44, gdp: 198, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 33, wealthShareUnder30: 7, trump2024: 64.2, harris2024: 33.6 },
+  { state: "California", abbr: "CA", native: 32, antiImmig: 26, gdp: 4251, enforcementScore: 4.0, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 16, wealthShareUnder30: 4, trump2024: 38.3, harris2024: 58.5 },
+  { state: "Colorado", abbr: "CO", native: 63, antiImmig: 29, gdp: 584, enforcementScore: 3.8, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6, trump2024: 43.1, harris2024: 54.2 },
+  { state: "Connecticut", abbr: "CT", native: 60, antiImmig: 30, gdp: 376, enforcementScore: 3.5, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 24, wealthShareUnder30: 5, trump2024: 41.9, harris2024: 56.4 },
+  { state: "Delaware", abbr: "DE", native: 56, antiImmig: 30, gdp: 117, enforcementScore: 3.1, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 25, wealthShareUnder30: 6, trump2024: 41.8, harris2024: 56.5 },
+  { state: "District of Columbia", abbr: "DC", native: 37, antiImmig: null, gdp: 193, enforcementScore: 3.5, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 8, wealthShareUnder30: 2, trump2024: 6.5, harris2024: 90.3 },
+  { state: "Florida", abbr: "FL", native: 49, antiImmig: 36, gdp: 1835, enforcementScore: 1.7, enforcementTier: "mostFarReaching", thirtyMarriedHomeowner: 24, wealthShareUnder30: 5, trump2024: 56.1, harris2024: 43.0 },
+  { state: "Georgia", abbr: "GA", native: 47, antiImmig: 35, gdp: 925, enforcementScore: 2.5, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 50.7, harris2024: 48.5 },
+  { state: "Hawaii", abbr: "HI", native: 21, antiImmig: 21, gdp: 125, enforcementScore: 3.2, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 18, wealthShareUnder30: 4, trump2024: 37.5, harris2024: 60.6 },
+  { state: "Idaho", abbr: "ID", native: 78, antiImmig: 41, gdp: 136, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 38, wealthShareUnder30: 8, trump2024: 66.9, harris2024: 30.4 },
+  { state: "Illinois", abbr: "IL", native: 56, antiImmig: 33, gdp: 1202, enforcementScore: 4.3, enforcementTier: "mostProtective", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 43.5, harris2024: 54.4 },
+  { state: "Indiana", abbr: "IN", native: 73, antiImmig: 40, gdp: 545, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8, trump2024: 58.6, harris2024: 39.6 },
+  { state: "Iowa", abbr: "IA", native: 81, antiImmig: 39, gdp: 277, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 37, wealthShareUnder30: 8, trump2024: 55.7, harris2024: 42.5 },
+  { state: "Kansas", abbr: "KS", native: 71, antiImmig: 36, gdp: 241, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 33, wealthShareUnder30: 7, trump2024: 57.2, harris2024: 41.0 },
+  { state: "Kentucky", abbr: "KY", native: 79, antiImmig: 44, gdp: 307, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 32, wealthShareUnder30: 7, trump2024: 64.5, harris2024: 33.9 },
+  { state: "Louisiana", abbr: "LA", native: 54, antiImmig: 39, gdp: 340, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 28, wealthShareUnder30: 6, trump2024: 60.2, harris2024: 38.2 },
+  { state: "Maine", abbr: "ME", native: 89, antiImmig: 40, gdp: 103, enforcementScore: 3.8, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 28, wealthShareUnder30: 6, trump2024: 45.5, harris2024: 52.4 },
+  { state: "Maryland", abbr: "MD", native: 45, antiImmig: 33, gdp: 568, enforcementScore: 3.6, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 24, wealthShareUnder30: 5, trump2024: 34.1, harris2024: 62.6 },
+  { state: "Massachusetts", abbr: "MA", native: 65, antiImmig: 26, gdp: 820, enforcementScore: 3.7, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 19, wealthShareUnder30: 4, trump2024: 36.0, harris2024: 61.2 },
+  { state: "Michigan", abbr: "MI", native: 70, antiImmig: 38, gdp: 730, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6, trump2024: 49.7, harris2024: 48.3 },
+  { state: "Minnesota", abbr: "MN", native: 74, antiImmig: 38, gdp: 531, enforcementScore: 3.1, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 31, wealthShareUnder30: 7, trump2024: 46.7, harris2024: 50.9 },
+  { state: "Mississippi", abbr: "MS", native: 54, antiImmig: 43, gdp: 165, enforcementScore: 2.1, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6, trump2024: 60.9, harris2024: 38.0 },
+  { state: "Missouri", abbr: "MO", native: 75, antiImmig: 36, gdp: 468, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 31, wealthShareUnder30: 7, trump2024: 58.5, harris2024: 40.1 },
+  { state: "Montana", abbr: "MT", native: 83, antiImmig: 39, gdp: 82, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 33, wealthShareUnder30: 7, trump2024: 58.4, harris2024: 38.5 },
+  { state: "Nebraska", abbr: "NE", native: 73, antiImmig: 36, gdp: 198, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 35, wealthShareUnder30: 8, trump2024: 59.3, harris2024: 38.9 },
+  { state: "Nevada", abbr: "NV", native: 42, antiImmig: 38, gdp: 281, enforcementScore: 3.1, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 22, wealthShareUnder30: 5, trump2024: 50.6, harris2024: 47.5 },
+  { state: "New Hampshire", abbr: "NH", native: 86, antiImmig: 40, gdp: 126, enforcementScore: 2.5, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6, trump2024: 47.9, harris2024: 50.7 },
+  { state: "New Jersey", abbr: "NJ", native: 48, antiImmig: 27, gdp: 887, enforcementScore: 3.9, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 22, wealthShareUnder30: 5, trump2024: 46.1, harris2024: 52.0 },
+  { state: "New Mexico", abbr: "NM", native: 35, antiImmig: 30, gdp: 153, enforcementScore: 3.2, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 22, wealthShareUnder30: 5, trump2024: 45.9, harris2024: 51.9 },
+  { state: "New York", abbr: "NY", native: 51, antiImmig: 27, gdp: 2468, enforcementScore: 3.7, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 17, wealthShareUnder30: 4, trump2024: 43.3, harris2024: 55.9 },
+  { state: "North Carolina", abbr: "NC", native: 58, antiImmig: 37, gdp: 894, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 50.9, harris2024: 47.7 },
+  { state: "North Dakota", abbr: "ND", native: 80, antiImmig: 39, gdp: 82, enforcementScore: 2.7, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 36, wealthShareUnder30: 8, trump2024: 67.0, harris2024: 30.5 },
+  { state: "Ohio", abbr: "OH", native: 74, antiImmig: 40, gdp: 967, enforcementScore: 2.9, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 30, wealthShareUnder30: 7, trump2024: 55.1, harris2024: 43.9 },
+  { state: "Oklahoma", abbr: "OK", native: 58, antiImmig: 38, gdp: 274, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 30, wealthShareUnder30: 7, trump2024: 66.2, harris2024: 31.9 },
+  { state: "Oregon", abbr: "OR", native: 69, antiImmig: 28, gdp: 343, enforcementScore: 4.3, enforcementTier: "mostProtective", thirtyMarriedHomeowner: 25, wealthShareUnder30: 6, trump2024: 41.0, harris2024: 55.3 },
+  { state: "Pennsylvania", abbr: "PA", native: 71, antiImmig: 38, gdp: 1056, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 28, wealthShareUnder30: 6, trump2024: 50.4, harris2024: 48.7 },
+  { state: "Rhode Island", abbr: "RI", native: 66, antiImmig: 29, gdp: 84, enforcementScore: 3.3, enforcementTier: "smallSteps", thirtyMarriedHomeowner: 21, wealthShareUnder30: 5, trump2024: 41.8, harris2024: 55.5 },
+  { state: "South Carolina", abbr: "SC", native: 62, antiImmig: 38, gdp: 379, enforcementScore: 2.5, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 58.2, harris2024: 40.4 },
+  { state: "South Dakota", abbr: "SD", native: 78, antiImmig: 43, gdp: 81, enforcementScore: 3.0, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 35, wealthShareUnder30: 8, trump2024: 63.4, harris2024: 34.2 },
+  { state: "Tennessee", abbr: "TN", native: 69, antiImmig: 43, gdp: 590, enforcementScore: 2.4, enforcementTier: "broadAntiSanctuary", thirtyMarriedHomeowner: 29, wealthShareUnder30: 6, trump2024: 64.2, harris2024: 34.5 },
+  { state: "Texas", abbr: "TX", native: 37, antiImmig: 34, gdp: 2904, enforcementScore: 1.6, enforcementTier: "mostFarReaching", thirtyMarriedHomeowner: 25, wealthShareUnder30: 6, trump2024: 56.1, harris2024: 42.5 },
+  { state: "Utah", abbr: "UT", native: 73, antiImmig: 33, gdp: 316, enforcementScore: 2.6, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 41, wealthShareUnder30: 9, trump2024: 59.4, harris2024: 37.8 },
+  { state: "Vermont", abbr: "VT", native: 89, antiImmig: 35, gdp: 48, enforcementScore: 3.9, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 32.3, harris2024: 63.8 },
+  { state: "Virginia", abbr: "VA", native: 56, antiImmig: 35, gdp: 798, enforcementScore: 3.3, enforcementTier: "limitedProtections", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 46.1, harris2024: 51.8 },
+  { state: "Washington", abbr: "WA", native: 60, antiImmig: 31, gdp: 895, enforcementScore: 3.9, enforcementTier: "broadSanctuary", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6, trump2024: 39.0, harris2024: 57.2 },
+  { state: "West Virginia", abbr: "WV", native: 88, antiImmig: 47, gdp: 109, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 70.0, harris2024: 28.1 },
+  { state: "Wisconsin", abbr: "WI", native: 77, antiImmig: 37, gdp: 473, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 32, wealthShareUnder30: 7, trump2024: 49.6, harris2024: 48.7 },
+  { state: "Wyoming", abbr: "WY", native: 81, antiImmig: 48, gdp: 53, enforcementScore: 2.9, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8, trump2024: 71.6, harris2024: 25.8 },
 ]
 
 /** Name, slug, and abbreviation for every state: safe to import from client components */
@@ -334,6 +347,27 @@ export const maxStateWealthShareUnder30 = Math.max(
 /** Enforcement intensity in [0, 1] — more ICE cooperation (lower ILRC score) scores higher */
 export function enforcementIntensity(score: number): number {
   return 1 - rangeIntensity(score, minStateEnforcementScore, maxStateEnforcementScore)
+}
+
+/** Margins at or beyond this many points take the deepest shade (DC's ~84 would wash out the rest) */
+export const ELECTION_MARGIN_CAP = 40
+
+/** 2024 Trump-minus-Harris margin in points: positive is a Trump win */
+export function election2024Margin(d: Pick<StateMapMetrics, "trump2024" | "harris2024">): number {
+  return d.trump2024 - d.harris2024
+}
+
+/** Diverging position in [0, 1]: 0 = Harris by the cap or more, 0.5 = tied, 1 = Trump by the cap or more */
+export function election2024Intensity(d: Pick<StateMapMetrics, "trump2024" | "harris2024">): number {
+  return rangeIntensity(election2024Margin(d), -ELECTION_MARGIN_CAP, ELECTION_MARGIN_CAP)
+}
+
+/** Winner first, e.g. "Trump +1.7 (50.4% – 48.7%)" */
+export function formatElection2024(d: Pick<StateMapMetrics, "trump2024" | "harris2024">): string {
+  const margin = election2024Margin(d)
+  const [winner, won, lost] =
+    margin >= 0 ? ["Trump", d.trump2024, d.harris2024] : ["Harris", d.harris2024, d.trump2024]
+  return `${winner} +${Math.abs(margin).toFixed(1)} (${won.toFixed(1)}% – ${lost.toFixed(1)}%)`
 }
 
 /** Linear position of `value` within [min, max], clamped to [0, 1] */

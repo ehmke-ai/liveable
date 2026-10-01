@@ -22,6 +22,7 @@ export const POPULATION_COLORS: Record<string, { light: string; dark: string }> 
   indian: { light: "#eda100", dark: "#c98500" },
   eastAsian: { light: "#e87ba4", dark: "#d55181" },
   arab: { light: "#008300", dark: "#008300" },
+  nativeAmerican: { light: "#3fa9d4", dark: "#4cb6e0" },
   other: { light: "#4a3aa7", dark: "#9085e9" },
 }
 

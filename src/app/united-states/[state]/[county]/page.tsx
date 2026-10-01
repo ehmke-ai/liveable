@@ -99,6 +99,13 @@ export default async function CountyPage({
       color: POPULATION_COLORS.african?.light,
     },
     {
+      label: "American Indian and Alaska Native",
+      countyValue: data.aianPct,
+      state: `${statePopulation.nativeAmerican}%`,
+      us: "—",
+      color: POPULATION_COLORS.nativeAmerican?.light,
+    },
+    {
       label: "Indian",
       countyValue: countyEthnic.indian,
       state: `${statePopulation.indian ?? "—"}${statePopulation.indian == null ? "" : "%"}`,

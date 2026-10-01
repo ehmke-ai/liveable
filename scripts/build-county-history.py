@@ -3,9 +3,11 @@ Generates public/data/county-history.json for the Demographics view of the US ma
 shares of the same groups as the state "Population by ethnic group" chart, for every year on
 the map's slider, keyed by year then 5-digit FIPS:
 
-  [european, hispanic, african, indian, eastAsian, arab]   (% of population; Other is the rest)
+  [european, hispanic, african, indian, eastAsian, arab, nativeAmerican]
+  (% of population; Other is the rest)
 
-European is non-Hispanic White minus Arab ancestry; African is non-Hispanic Black; Indian is
+European is non-Hispanic White minus Arab ancestry; African is non-Hispanic Black; Native American is non-Hispanic American Indian
+and Alaska Native alone; Indian is
 Asian Indian, Pakistani, and Bangladeshi; East Asian is Chinese, Taiwanese, Japanese, Korean,
 Mongolian, Okinawan, and Hmong (single-group Asian counts, as in the state build). 1990 has no
 county Asian-group or ancestry data, so indian / eastAsian / arab are null and European is
@@ -59,7 +61,7 @@ RECODED_FIPS = {
 
 # asian_total is the denominator for indian / east: the population total, except in 2025 where
 # the Asian-group counts come from a different source (the ACS) than the population estimate
-FIELDS = ("total", "nhw", "hispanic", "nhb", "indian", "east", "asian_total", "arab", "arab_total")
+FIELDS = ("total", "nhw", "hispanic", "nhb", "nhai", "indian", "east", "asian_total", "arab", "arab_total")
 
 
 # Same cached downloader as build-states-data.py
@@ -149,6 +151,7 @@ def shares(counts):
             pct(c["indian"], c["asian_total"]),
             pct(c["east"], c["asian_total"]),
             arab,
+            pct(c["nhai"], c["total"]),
         ]
     return out
 
@@ -164,16 +167,16 @@ def year_1990():
         if len(parts) != 10 or parts[0] != "1990" or not parts[1].isdigit():
             continue
         values = [int(p) for p in parts[2:]]
-        nh_white, nh_black, _, _, h_white, h_black, h_aian, h_asian = values
+        nh_white, nh_black, nh_aian, _, h_white, h_black, h_aian, h_asian = values
         counts[parts[1]] = {
-            "total": sum(values), "nhw": nh_white, "nhb": nh_black,
+            "total": sum(values), "nhw": nh_white, "nhb": nh_black, "nhai": nh_aian,
             "hispanic": h_white + h_black + h_aian + h_asian,
             "indian": None, "east": None, "asian_total": None, "arab": None, "arab_total": None,
         }
     return shares(counts)
 
 
-def decennial(year, origin_table, total, nhw, hispanic, nhb, asian_table, asian_group, ancestry_table, ancestry_group):
+def decennial(year, origin_table, total, nhw, hispanic, nhb, nhai, asian_table, asian_group, ancestry_table, ancestry_group):
     origin, asian, ancestry = table(origin_table), table(asian_table), table(ancestry_table)
     ind, east = asian_keys(asian_group)
     arab, arab_total = arab_keys(ancestry_group)
@@ -182,6 +185,7 @@ def decennial(year, origin_table, total, nhw, hispanic, nhb, asian_table, asian_
         a, anc = asian.get(fips, {}), ancestry.get(fips, {})
         counts[fips] = {
             "total": num(o[total]), "nhw": num(o[nhw]), "hispanic": num(o[hispanic]), "nhb": num(o[nhb]),
+            "nhai": num(o[nhai]),
             "indian": sum(num(a.get(k)) for k in ind), "east": sum(num(a.get(k)) for k in east),
             "asian_total": num(o[total]),
             "arab": num(anc.get(arab)),
@@ -201,6 +205,7 @@ def year_2020():
         counts[fips] = {
             "total": num(d["DP05_0070E"]), "nhw": num(d["DP05_0077E"]),
             "hispanic": num(d["DP05_0071E"]), "nhb": num(d["DP05_0078E"]),
+            "nhai": num(d["DP05_0079E"]),
             # ACS tables share one population control total, so DP05's total works for all three
             "indian": sum(num(a.get(k)) for k in ind), "east": sum(num(a.get(k)) for k in east),
             "asian_total": num(d["DP05_0070E"]),
@@ -229,6 +234,7 @@ def year_2025():
             "nhw": int(r["NHWA_MALE"]) + int(r["NHWA_FEMALE"]),
             "hispanic": int(r["H_MALE"]) + int(r["H_FEMALE"]),
             "nhb": int(r["NHBA_MALE"]) + int(r["NHBA_FEMALE"]),
+            "nhai": int(r["NHIA_MALE"]) + int(r["NHIA_FEMALE"]),
             # Asian-group and ancestry shares come from the ACS, over the ACS's own total
             "indian": sum(num(a.get(k)) for k in ind), "east": sum(num(a.get(k)) for k in east),
             "asian_total": num(anc.get(arab_total)),
@@ -241,12 +247,12 @@ def main():
     history = {
         "1990": year_1990(),
         "2000": decennial(
-            "2000", "DECENNIALSF12000.P004", "P004001", "P004005", "P004002", "P004006",
+            "2000", "DECENNIALSF12000.P004", "P004001", "P004005", "P004002", "P004006", "P004007",
             "DECENNIALSF12000.PCT005", "2000/dec/sf1/groups/PCT005",
             "DECENNIALSF32000.PCT018", "2000/dec/sf3/groups/PCT018",
         ),
         "2010": decennial(
-            "2010", "DECENNIALSF12010.P5", "P005001", "P005003", "P005010", "P005004",
+            "2010", "DECENNIALSF12010.P5", "P005001", "P005003", "P005010", "P005004", "P005005",
             "DECENNIALSF12010.PCT5", "2010/dec/sf1/groups/PCT5",
             "ACSDT5Y2010.B04006", "2010/acs/acs5/groups/B04006",
         ),

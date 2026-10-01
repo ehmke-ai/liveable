@@ -330,12 +330,13 @@ export default async function StatePage({
           African is Black or African American. Indian is Asian Indian, Pakistani, and
           Bangladeshi; East Asian follows the Census East Asian grouping (Chinese, Taiwanese,
           Japanese, Korean, Mongolian, Okinawan, Hmong). Both count people reporting a single
-          Asian group. Other covers Southeast Asian (mainly Vietnamese and Filipino), other South
-          and Central Asian, American Indian, Pacific Islander, and multiracial residents. From
+          Asian group. Native American is American Indian and Alaska Native. Other covers
+          Southeast Asian (mainly Vietnamese and Filipino), other South and Central Asian, Pacific
+          Islander, and multiracial residents. From
           2000 the broad groups use the Census population estimates, which assign &ldquo;some
           other race&rdquo; responses to a specific race. Before 2000 the Census published
-          Hispanic origin only against non-Hispanic White, so African includes Hispanic Black
-          residents, and Arab, Indian, and East Asian cannot be separated (shown as &mdash; and
+          Hispanic origin only against non-Hispanic White, so African and Native American include
+          Hispanic Black and Hispanic American Indian residents, and Arab, Indian, and East Asian cannot be separated (shown as &mdash; and
           included in Other). The census did not tabulate Hispanic origin at all in 1960;
           Hispanic residents were classified as White, so a 1960 figure overstates non-Hispanic
           White relative to 1970 onward, when Hispanic origin was asked of a 15% sample. The 2025

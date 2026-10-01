@@ -233,7 +233,7 @@ export function StateCountyMap({
         )}
         <svg
           viewBox={viewBox}
-          className="h-auto w-full touch-pan-y"
+          className="h-auto max-h-[75svh] w-full touch-pan-y"
           role="img"
           aria-label={`Interactive map of ${state.state} counties showing European population share in ${year}`}
         >

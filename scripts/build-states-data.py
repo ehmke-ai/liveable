@@ -201,17 +201,28 @@ def wp56(fips):
         elif last == "1970" and "15%" in label:
             by_year["1970_15"] = r
     # columns: 0 label, 1 total, 2 white, 3 black, 4 AIAN, 5 API, 6 other, 7 hispanic, 8 NH white
+    def aian(r):  # "-" where the share rounds to zero
+        return r1(r[4]) if isinstance(r[4], (int, float)) else 0
     points = []
     white60, black60 = by_year["1960"][2], by_year["1960"][3]
-    points.append({"year": 1960, "european": r1(white60), "african": r1(black60), "hispanic": 0})
+    points.append({
+        "year": 1960, "european": r1(white60), "african": r1(black60), "hispanic": 0,
+        "nativeAmerican": aian(by_year["1960"]),
+    })
     s70 = by_year["1970_15"]
-    points.append({"year": 1970, "european": r1(s70[8]), "african": r1(by_year["1970"][3]), "hispanic": r1(s70[7])})
+    points.append({
+        "year": 1970, "european": r1(s70[8]), "african": r1(by_year["1970"][3]), "hispanic": r1(s70[7]),
+        "nativeAmerican": aian(by_year["1970"]),
+    })
     for y in ("1980", "1990"):
         r = by_year[y]
-        points.append({"year": int(y), "european": r1(r[8]), "african": r1(r[3]), "hispanic": r1(r[7])})
+        points.append({
+            "year": int(y), "european": r1(r[8]), "african": r1(r[3]), "hispanic": r1(r[7]),
+            "nativeAmerican": aian(r),
+        })
     for p in points:
         p.update(arab=None, indian=None, eastAsian=None)
-        p["other"] = max(0, r1(100 - p["european"] - p["african"] - p["hispanic"]))
+        p["other"] = max(0, r1(100 - p["european"] - p["african"] - p["hispanic"] - p["nativeAmerican"]))
     return t, points
 
 
@@ -220,7 +231,7 @@ def merge_valdez_cordova(counties, dp05):
     parts = [c for c in counties if c["fips"] in ("02063", "02066")]
     pops = [num(dp05[c["fips"]]["DP05_0001E"]) for c in parts]
     merged = {"name": "Valdez-Cordova Census Area", "fips": "02261", "label": "Valdez-Cordova Census Area"}
-    for k in ("nonHispanicWhitePct", "hispanicPct", "blackPct", "asianPct"):
+    for k in ("nonHispanicWhitePct", "hispanicPct", "blackPct", "aianPct", "asianPct"):
         merged[k] = r1(sum(c[k] * p for c, p in zip(parts, pops)) / sum(pops))
     rest = [c for c in counties if c not in parts]
     return sorted(rest + [merged], key=lambda c: c["name"])
@@ -282,6 +293,7 @@ def main():
     k_nhw = dp_key(lambda l: l.endswith("Not Hispanic or Latino!!White alone"))
     k_his = dp_key(lambda l: l.endswith("Total population!!Hispanic or Latino (of any race)"))
     k_blk = dp_key(lambda l: l.endswith("One race!!Black or African American"))
+    k_aian = dp_key(lambda l: l.endswith("One race!!American Indian and Alaska Native"))
     k_asn = dp_key(lambda l: l.endswith("One race!!Asian"))
 
     for fips, (name, abbr) in sorted(STATES.items(), key=lambda kv: kv[1][0]):
@@ -300,7 +312,7 @@ def main():
                     row["label"] = full
                 row.update(
                     nonHispanicWhitePct=num(r[k_nhw]), hispanicPct=num(r[k_his]),
-                    blackPct=num(r[k_blk]), asianPct=num(r[k_asn]),
+                    blackPct=num(r[k_blk]), aianPct=num(r[k_aian]), asianPct=num(r[k_asn]),
                 )
                 counties.append(row)
             if abbr == "AK":
@@ -315,6 +327,7 @@ def main():
             total = source[(fips, year, "0", "0" if source is tot00 else "all")]
             nhw = source[(fips, year, "1", "1")] / total * 100
             nhb = source[(fips, year, "1", "2")] / total * 100
+            nhai = source[(fips, year, "1", "3")] / total * 100
             hisp = source[(fips, year, "2", "0" if source is tot00 else "all")] / total * 100
             if fips in asian[year]:
                 ind_n, east_n, denom = asian[year][fips]
@@ -334,12 +347,12 @@ def main():
             arab_share = a_count / a_total * 100 if a_count is not None else None
 
             european = nhw - (arab_share or 0)
-            other = 100 - nhw - nhb - hisp - ind - east
+            other = 100 - nhw - nhb - nhai - hisp - ind - east
             history.append({
                 "year": int(year), "european": r1(european),
                 "arab": r1(arab_share) if arab_share is not None else None,
                 "indian": r1(ind), "eastAsian": r1(east), "african": r1(nhb), "hispanic": r1(hisp),
-                "other": max(0, r1(other)),
+                "nativeAmerican": r1(nhai), "other": max(0, r1(other)),
             })
 
         pop25 = tot20[(fips, "2025", "0", "all")]
@@ -414,7 +427,7 @@ def main():
         if fips not in NO_COUNTY_MAP:
             sources.append({
                 "label": "U.S. Census Bureau — American Community Survey 2020 5-Year Estimates, Table DP05",
-                "detail": f"White alone not Hispanic or Latino, Hispanic or Latino (any race), Black alone, and Asian alone, % of population, all {len(county_labels[slug])} {name} {COUNTY_NOUN.get(abbr, 'counties')}.",
+                "detail": f"White alone not Hispanic or Latino, Hispanic or Latino (any race), Black alone, American Indian and Alaska Native alone, and Asian alone, % of population, all {len(county_labels[slug])} {name} {COUNTY_NOUN.get(abbr, 'counties')}.",
                 "url": "https://data.census.gov/table/ACSDP5Y2020.DP05",
             })
 

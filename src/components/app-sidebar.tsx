@@ -42,7 +42,7 @@ export function AppSidebar() {
           className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold"
         >
           <Globe2 className="size-4 shrink-0" />
-          <span className="truncate font-brand text-lg">researchzoomer.com</span>
+          <span className="truncate font-brand text-lg">basedmetrics.com</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>

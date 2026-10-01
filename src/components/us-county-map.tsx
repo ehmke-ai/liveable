@@ -2,14 +2,20 @@
 
 import { geoPath, type GeoPermissibleObjects } from "d3-geo"
 import { memo, useEffect, useMemo, useState, type MouseEvent } from "react"
-import { HexColorInput, HexColorPicker } from "react-colorful"
 import { feature, mesh } from "topojson-client"
 import type { Feature, FeatureCollection, Geometry, MultiLineString } from "geojson"
+import { Download } from "lucide-react"
 import type { GeometryCollection, Topology } from "topojson-specification"
 
+import { ColorChooser } from "@/components/color-chooser"
 import { POPULATION_COLORS } from "@/components/population-stack-chart"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  downloadMapPng,
+  shade,
+  shadeGradient,
+  shadeStops,
+} from "@/components/us-county-map-export"
 import { YearSlider } from "@/components/year-slider"
 import {
   COUNTY_HISTORY_URL,
@@ -37,23 +43,13 @@ const HEIGHT = 600
 /** `id` is a stable React key, since sides can be removed from the middle */
 type Side = { id: number; groups: GroupKey[]; color: string }
 
-// Red, blue, the secondaries, brown, white, and black, as their HTML named-color hex codes. Lowercase to
-// match what the custom picker emits, so a preset stays highlighted.
-const SWATCHES = [
-  "#ff0000", // red
-  "#a52a2a", // brown
-  "#0000ff", // blue
-  "#ffa500", // orange
-  "#008000", // green
-  "#800080", // purple
-  "#ffffff", // white
-  "#000000", // black
+const DEFAULT_SIDES: Side[] = [
+  { id: 0, groups: ["european"], color: "#F1C7A8" },
+  { id: 1, groups: ["hispanic", "african", "indian", "eastAsian", "arab", "nativeAmerican", "other"], color: "#593001" },
 ]
 
-const DEFAULT_SIDES: Side[] = [
-  { id: 0, groups: ["european"], color: "#0000ff" },
-  { id: 1, groups: ["hispanic", "african", "indian", "eastAsian", "arab", "other"], color: "#ff0000" },
-]
+// Starting colors for newly added sides; each can then be changed with the custom picker
+const NEW_SIDE_COLORS = ["#ff0000", "#a52a2a", "#0000ff", "#ffa500", "#008000", "#800080", "#000000"]
 
 // Groups are exclusive and every side needs one, so there can be at most one side per group
 const MAX_SIDES = GROUPS.length
@@ -80,6 +76,8 @@ function leaderOf(values: CountyValues, sides: Side[]): Leader | undefined {
 
 // Each county takes the color of its leading side, deeper the wider its lead. Scaled to the
 // widest lead in any county in any year, so a shade means the same margin across the slider.
+// Two sides share one scale, like immigration sentiment, but blend straight from the first
+// side's color into the second's with no neutral middle.
 function fillFor(
   leader: Leader | undefined,
   maxLead: number,
@@ -87,11 +85,41 @@ function fillFor(
 ) {
   if (!leader) return "var(--border)"
   const t = maxLead > 0 ? Math.min(1, leader.lead / maxLead) : 0
-  return `color-mix(in oklch, ${sides[leader.index].color} ${Math.round(15 + t * 85)}%, var(--muted))`
+  if (sides.length === 2) {
+    const signed = leader.index === 0 ? -t : t
+    return blend(sides[0].color, sides[1].color, 0.5 + signed / 2)
+  }
+  return shade(sides[leader.index].color, Math.round(15 + t * 85))
+}
+
+/** `t` of the way from `from` (0) to `to` (1) */
+function blend(from: string, to: string, t: number) {
+  return `color-mix(in oklch, ${from}, ${to} ${Math.round(t * 100)}%)`
+}
+
+function blendStops(from: string, to: string) {
+  return [0, 0.25, 0.5, 0.75, 1].map((t) => blend(from, to, t))
 }
 
 function sideLabel(side: Side): string {
   return side.groups.map((g) => GROUPS.find((x) => x.key === g)?.label).join(" + ")
+}
+
+// Short name for the title: a side holding every group but one reads as "Non-" that group
+function sideTitle(side: Side, sides: Side[]): string {
+  const rest = GROUPS.filter((g) => !side.groups.includes(g.key))
+  const allAssigned = sides.flatMap((s) => s.groups).length === GROUPS.length
+  if (side.groups.length > 2 && rest.length === 1 && allAssigned) return `Non-${rest[0].label}`
+  return sideLabel(side)
+}
+
+/** Source line under the map, so a screenshot carries its citation */
+const YEAR_SOURCES: Record<number, string> = {
+  1990: "1990 county population estimates",
+  2000: "2000 Census",
+  2010: "2010 Census",
+  2020: "ACS 2016–2020",
+  2025: "Vintage 2025 estimates, ACS 2020–2024",
 }
 
 type CountyOutline = { fips: string; d: string }
@@ -141,6 +169,7 @@ export function UsCountyMap({
   const [hoveredFips, setHoveredFips] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
   const [sides, setSides] = useState<Side[]>(DEFAULT_SIDES)
+  const [exporting, setExporting] = useState(false)
 
   const labelByFips = useMemo(() => Object.fromEntries(rows), [rows])
 
@@ -183,7 +212,7 @@ export function UsCountyMap({
   }
 
   // A new side starts with an unassigned group if there is one, otherwise the last group of
-  // the side holding the most, and the first preset color no side is using yet.
+  // the side holding the most, and the first starting color no side is using yet.
   function addSide() {
     setSides((prev) => {
       if (prev.length >= MAX_SIDES) return prev
@@ -199,7 +228,7 @@ export function UsCountyMap({
         )
       }
       const used = new Set(prev.map((side) => side.color))
-      const color = SWATCHES.find((c) => !used.has(c)) ?? SWATCHES[0]
+      const color = NEW_SIDE_COLORS.find((c) => !used.has(c)) ?? NEW_SIDE_COLORS[0]
       const id = Math.max(...prev.map((side) => side.id)) + 1
       return [...next, { id, groups: [key], color }]
     })
@@ -310,183 +339,259 @@ export function UsCountyMap({
     (sides.flatMap((side) => side.groups).length < GROUPS.length ||
       sides.some((side) => side.groups.length > 1))
 
+  const title = `${sides.map((side) => sideTitle(side, sides)).join(" vs. ")} by county, ${year}`
+  const leadLabel = `+${Math.round(maxLead)} pts`
+  // Two sides blend into each other on one bar; more each get their own
+  const diverging = sides.length === 2
+  const subtitle = `Each county is colored by its ${sides.length > 2 ? "largest" : "larger"} side, as a share of population; deeper means a wider lead.`
+  const source = `Source: U.S. Census Bureau${YEAR_SOURCES[year] ? ` (${YEAR_SOURCES[year]})` : ""}`
+
+  async function handleDownload() {
+    setExporting(true)
+    try {
+      await downloadMapPng({
+        title,
+        subtitle,
+        legend: diverging
+          ? [
+              {
+                name: "Lead",
+                stops: blendStops(sides[0].color, sides[1].color),
+                low: `${sideTitle(sides[0], sides)} ${leadLabel}`,
+                high: `${sideTitle(sides[1], sides)} ${leadLabel}`,
+              },
+            ]
+          : sides.map((side) => {
+              const name = sideTitle(side, sides)
+              return {
+                name: `Most ${name}`,
+                groups: name !== sideLabel(side) ? sideLabel(side) : undefined,
+                stops: shadeStops(side.color),
+                low: "Close",
+                high: leadLabel,
+              }
+            }),
+        source,
+        mapWidth: WIDTH,
+        mapHeight: HEIGHT,
+        shapes,
+        stateBorders: (stateBorders && path(stateBorders)) || undefined,
+        fileName: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`,
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
-            Loading map…
+      {/* Title, map, legend, and source sit together so a screenshot of this block stands alone */}
+      <figure className="space-y-3 bg-background">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-balance text-foreground sm:text-lg">
+              {title}
+            </h3>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
-        )}
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="h-auto w-full touch-pan-y"
-          role="img"
-          aria-label={`Map of United States counties comparing ${sides.map(sideLabel).join(" vs. ")} in ${year}`}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => {
-            setHoveredFips(null)
-            setPointer(null)
-          }}
-        >
-          <CountyPaths shapes={shapes} />
-          {stateBorders && (
-            <path
-              d={path(stateBorders) ?? undefined}
-              fill="none"
-              stroke="var(--background)"
-              strokeWidth={1}
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              pointerEvents="none"
-            />
-          )}
-          {hoveredFips && pathByFips[hoveredFips] && (
-            <path
-              d={pathByFips[hoveredFips]}
-              fill="none"
-              stroke="color-mix(in oklch, var(--foreground) 55%, var(--background))"
-              strokeWidth={1.25}
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              pointerEvents="none"
-            />
-          )}
-        </svg>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            disabled={loading || !history || exporting}
+          >
+            <Download aria-hidden />
+            {exporting ? "Saving…" : "PNG"}
+          </Button>
+        </div>
 
-        {hoveredFips && hoveredValues && pointer && (
-          <div
-            className="pointer-events-none absolute z-10 min-w-[11rem] rounded-none border border-border bg-popover px-3 py-2 text-sm shadow-md"
-            style={{
-              left: `min(${pointer.x}%, calc(100% - 12rem))`,
-              top: `max(${pointer.y - 2}%, 0.5rem)`,
-              transform: "translateY(-100%)",
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">
+              Loading map…
+            </div>
+          )}
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="h-auto w-full touch-pan-y"
+            role="img"
+            aria-label={`Map: ${title}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => {
+              setHoveredFips(null)
+              setPointer(null)
             }}
           >
-            <div className="font-medium text-foreground">
-              {labelByFips[hoveredFips] ?? regionLabels[hoveredFips]}, {states[hoveredFips.slice(0, 2)]}
+            <CountyPaths shapes={shapes} />
+            {stateBorders && (
+              <path
+                d={path(stateBorders) ?? undefined}
+                fill="none"
+                stroke="var(--background)"
+                strokeWidth={1}
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            )}
+            {hoveredFips && pathByFips[hoveredFips] && (
+              <path
+                d={pathByFips[hoveredFips]}
+                fill="none"
+                stroke="color-mix(in oklch, var(--foreground) 55%, var(--background))"
+                strokeWidth={1.25}
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            )}
+          </svg>
+
+          {hoveredFips && hoveredValues && pointer && (
+            <div
+              className="pointer-events-none absolute z-10 min-w-[11rem] rounded-none border border-border bg-popover px-3 py-2 text-sm shadow-md"
+              style={{
+                left: `min(${pointer.x}%, calc(100% - 12rem))`,
+                top: `max(${pointer.y - 2}%, 0.5rem)`,
+                transform: "translateY(-100%)",
+              }}
+            >
+              <div className="font-medium text-foreground">
+                {labelByFips[hoveredFips] ?? regionLabels[hoveredFips]}, {states[hoveredFips.slice(0, 2)]}
+              </div>
+              <ul className="mt-1.5 space-y-0.5 tabular-nums">
+                {foldedBreakdown(hoveredValues).map(
+                  ({ key, label, value }) => (
+                    <li key={key} className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <i
+                          className="inline-block size-2 rounded-full"
+                          style={{
+                            background: POPULATION_COLORS[key]?.light ?? "var(--muted-foreground)",
+                          }}
+                          aria-hidden
+                        />
+                        {label}
+                      </span>
+                      <span className="font-medium text-foreground">{value}%</span>
+                    </li>
+                  )
+                )}
+              </ul>
             </div>
-            <ul className="mt-1.5 space-y-0.5 tabular-nums">
-              {foldedBreakdown(hoveredValues).map(
-                ({ key, label, value }) => (
-                  <li key={key} className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <i
-                        className="inline-block size-2 rounded-full"
-                        style={{
-                          background: POPULATION_COLORS[key]?.light ?? "var(--muted-foreground)",
-                        }}
-                        aria-hidden
-                      />
-                      {label}
-                    </span>
-                    <span className="font-medium text-foreground">{value}%</span>
-                  </li>
-                )
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+
+        <figcaption className="flex flex-wrap items-end gap-x-6 gap-y-3 text-xs">
+          {diverging ? (
+            <div className="w-64 space-y-1">
+              <div className="font-medium text-foreground">Lead</div>
+              <div
+                className="h-2.5 border border-border"
+                style={{ background: `linear-gradient(in oklch to right, ${sides[0].color}, ${sides[1].color})` }}
+              />
+              <div className="flex justify-between gap-2 tabular-nums text-muted-foreground">
+                <span>{sideTitle(sides[0], sides)} {leadLabel}</span>
+                <span className="text-right">{sideTitle(sides[1], sides)} {leadLabel}</span>
+              </div>
+            </div>
+          ) : (
+            sides.map((side) => {
+              const name = sideTitle(side, sides)
+              return (
+                <div key={side.id} className="w-40 space-y-1">
+                  <div className="font-medium text-foreground">Most {name}</div>
+                  {name !== sideLabel(side) && (
+                    <div className="text-muted-foreground">{sideLabel(side)}</div>
+                  )}
+                  <div
+                    className="h-2.5 border border-border"
+                    style={{
+                      background: shadeGradient(side.color),
+                    }}
+                  />
+                  <div className="flex justify-between tabular-nums text-muted-foreground">
+                    <span>Close</span>
+                    <span>{leadLabel}</span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+          <span className="inline-flex items-center gap-2 text-muted-foreground">
+            <i
+              className="inline-block size-3 rounded-[3px] border border-border"
+              style={{ background: "var(--border)" }}
+              aria-hidden
+            />
+            No data
+          </span>
+          <span className="ml-auto text-muted-foreground">
+            {source}
+          </span>
+        </figcaption>
+      </figure>
 
       <YearSlider years={years} year={year} onChange={setYear} disabled={!history} />
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {sides.map((side, sideIndex) => {
-          const isCustom = !SWATCHES.includes(side.color)
-          return (
-            <div
-              key={side.id}
-              className="space-y-3 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm"
-            >
-              <div className="flex items-center gap-2">
-                <i
-                  className="inline-block size-3 shrink-0 rounded-[3px] border border-border"
-                  style={{ background: side.color }}
-                  aria-hidden
-                />
-                <span className="font-medium text-foreground">
-                  {sides.length > 2 ? "Most" : "More"} {sideLabel(side)}
-                </span>
-                {sides.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => removeSide(sideIndex)}
-                    aria-label={`Remove side ${sideIndex + 1}`}
-                    className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Side ${sideIndex + 1} groups`}>
-                {GROUPS.map(({ key, label }) => {
-                  const active = side.groups.includes(key)
-                  const holder = sides.find((s) => s.groups.includes(key))
-                  // Can't take a side's only group, whether this side's or another's
-                  const locked = holder ? holder.groups.length === 1 : false
-                  return (
-                    <Button
-                      key={key}
-                      type="button"
-                      size="xs"
-                      variant={active ? "default" : "secondary"}
-                      aria-pressed={active}
-                      disabled={locked}
-                      title={locked ? "Each side needs at least one group" : undefined}
-                      onClick={() => toggleGroup(sideIndex, key)}
-                    >
-                      {label}
-                    </Button>
-                  )
-                })}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Side ${sideIndex + 1} color`}>
-                {SWATCHES.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    aria-label={`Use ${color}`}
-                    aria-pressed={side.color === color}
-                    onClick={() => setSideColor(sideIndex, color)}
-                    className={`size-5 rounded-full border border-border ${side.color === color ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""}`}
-                    style={{ background: color }}
-                  />
-                ))}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      title="Custom color"
-                      aria-label="Custom color"
-                      className={`size-5 rounded-full border border-border ${isCustom ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""}`}
-                      style={{
-                        background: isCustom
-                          ? side.color
-                          : "conic-gradient(#e23d3d, #c9a227, #2db88a, #0e9fb3, #3d7ee2, #8b5cf6, #e87ba4, #e23d3d)",
-                      }}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto">
-                    <HexColorPicker
-                      color={side.color}
-                      onChange={(color) => setSideColor(sideIndex, color)}
-                    />
-                    <HexColorInput
-                      color={side.color}
-                      onChange={(color) => setSideColor(sideIndex, color)}
-                      prefixed
-                      aria-label="Hex color code"
-                      className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 font-mono text-sm uppercase outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+        {sides.map((side, sideIndex) => (
+          <div
+            key={side.id}
+            className="space-y-3 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm"
+          >
+            <div className="flex items-center gap-2">
+              <i
+                className="inline-block size-3 shrink-0 rounded-[3px] border border-border"
+                style={{ background: side.color }}
+                aria-hidden
+              />
+              <span className="font-medium text-foreground">
+                {sides.length > 2 ? "Most" : "More"} {sideLabel(side)}
+              </span>
+              {sides.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => removeSide(sideIndex)}
+                  aria-label={`Remove side ${sideIndex + 1}`}
+                  className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  Remove
+                </button>
+              )}
             </div>
-          )
-        })}
+
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Side ${sideIndex + 1} groups`}>
+              {GROUPS.map(({ key, label }) => {
+                const active = side.groups.includes(key)
+                const holder = sides.find((s) => s.groups.includes(key))
+                // Can't take a side's only group, whether this side's or another's
+                const locked = holder ? holder.groups.length === 1 : false
+                return (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="xs"
+                    variant={active ? "default" : "secondary"}
+                    aria-pressed={active}
+                    disabled={locked}
+                    title={locked ? "Each side needs at least one group" : undefined}
+                    onClick={() => toggleGroup(sideIndex, key)}
+                  >
+                    {label}
+                  </Button>
+                )
+              })}
+            </div>
+
+            <ColorChooser
+              color={side.color}
+              onChange={(color) => setSideColor(sideIndex, color)}
+              label={`Side ${sideIndex + 1} color`}
+            />
+          </div>
+        ))}
 
         {canAddSide && (
           <button
@@ -497,18 +602,6 @@ export function UsCountyMap({
             + Add side
           </button>
         )}
-      </div>
-
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <i
-            className="inline-block size-3 rounded-[3px] border border-border"
-            style={{ background: "var(--border)" }}
-            aria-hidden
-          />
-          No data for that year
-        </span>
-        <span>Each county takes the color of its largest side; paler means a closer race.</span>
       </div>
     </div>
   )

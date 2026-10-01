@@ -12,12 +12,14 @@ import type { Feature, FeatureCollection, Geometry } from "geojson"
 import type { GeometryCollection, Topology } from "topojson-specification"
 
 import { Button } from "@/components/ui/button"
+import { ANTI_IMMIG_COLOR, divergingShade, PRO_IMMIG_COLOR } from "@/components/us-county-map-export"
 import {
   COLORS,
   demographicsByIso,
   formatMedianAge,
   mapDemographicsData,
   maxAntiImmig,
+  minAntiImmig,
   maxMapMedianAge,
   maxMapThirtyMarriedHomeowner,
   maxMapWealthShareUnder30,
@@ -227,11 +229,9 @@ function fillFor(
   }
 
   if (metric === "antiImmig") {
-    const t = data.antiImmig / maxAntiImmig
-    const alpha = 0.35 + t * 0.65
-    if (selected) return `rgba(217, 120, 45, ${Math.min(1, alpha + 0.15)})`
-    if (hovered) return `rgba(240, 178, 122, ${Math.min(1, alpha + 0.1)})`
-    return `rgba(217, 120, 45, ${alpha})`
+    // Diverging: most pro-immigration country deepest blue, mid-range neutral, most anti deepest red
+    const t = rangeIntensity(data.antiImmig, minAntiImmig, maxAntiImmig)
+    return divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, t, selected ? 15 : hovered ? 8 : 0)
   }
 
   if (metric === "medianAge") {
@@ -291,7 +291,6 @@ function metricLabel(data: CountryDemographics, metric: MapMetric): string {
 
 function strokeFor(metric: MapMetric, selected: boolean, hovered: boolean): string {
   if (selected) {
-    if (metric === "antiImmig") return "#f0b27a"
     if (metric === "medianAge") return "#9ecce8"
     if (metric === "thirtyMarriedHomeowner") return "#c4b5fd"
     if (metric === "wealthShareUnder30") return "#86efac"
@@ -411,7 +410,7 @@ export function EuropeMap() {
             variant={metric === "antiImmig" ? "default" : "secondary"}
             onClick={() => setMetric("antiImmig")}
           >
-            Anti-immigration
+            Immigration sentiment
           </Button>
           <Button
             type="button"
@@ -516,7 +515,7 @@ export function EuropeMap() {
                     {metric === "antiImmig" ? (
                       <>
                         Opposition{" "}
-                        <span style={{ color: COLORS.anti }}>{hovered.antiImmig}%</span>
+                        <span style={{ color: ANTI_IMMIG_COLOR }}>{hovered.antiImmig}%</span>
                       </>
                     ) : metric === "medianAge" ? (
                       <>
@@ -648,8 +647,18 @@ export function EuropeMap() {
           <span className="font-medium text-foreground">Legend</span>
           {metric === "antiImmig" ? (
             <>
-              <LegendSwatch color="rgba(217,120,45,0.35)" label="Lower opposition" />
-              <LegendSwatch color="rgba(217,120,45,1)" label="Higher opposition" />
+              <LegendSwatch
+                color={divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, 0)}
+                label={`Pro-immigration (${minAntiImmig}%)`}
+              />
+              <LegendSwatch
+                color={divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, 0.5)}
+                label="Mid-range"
+              />
+              <LegendSwatch
+                color={divergingShade(PRO_IMMIG_COLOR, ANTI_IMMIG_COLOR, 1)}
+                label={`Anti-immigration (${maxAntiImmig}%)`}
+              />
             </>
           ) : metric === "medianAge" ? (
             <>
