@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import { PopulationStackChart } from "@/components/population-stack-chart"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
 import { StateCountyMap } from "@/components/state-county-map"
+import { PageHeader, Stat, Swatch } from "@/components/topic-page"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -20,6 +23,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  COST_SOURCES,
+  costComparisonRows,
+  formatDollars,
+  formatRpp,
+  stateCost,
+  usCost,
+} from "@/lib/cost-of-living"
 import { COUNTY_HISTORY_YEARS } from "@/lib/county-history"
 import { COLORS, formatMedianAge, getCountryBySlug } from "@/lib/demographics"
 import {
@@ -28,7 +39,10 @@ import {
   type PopulationGroup,
   latestPopulation,
   stackPopulationHistory,
+  stateNav,
+  stateNavByAbbr,
 } from "@/lib/states"
+import { STATE_NEIGHBORS } from "@/lib/state-neighbors"
 import { getCounties, getStateBySlug, statesData } from "@/lib/state-data"
 
 const COUNTY_NOUN: Record<string, string> = {
@@ -49,33 +63,9 @@ export async function generateMetadata({
   const state = getStateBySlug(slug)
   if (!state) return { title: "State not found" }
   return {
-    title: `${state.state} — Demographics`,
+    title: state.state,
     description: `Demographic breakdown and historical trends for ${state.state}.`,
   }
-}
-
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div>
-      <dt className="eyebrow">{label}</dt>
-      <dd className="mt-1 text-[17px] font-semibold tabular-nums" style={{ color }}>
-        {value}
-      </dd>
-    </div>
-  )
-}
-
-function Swatch({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-      <i
-        className="inline-block size-3.5 rounded-[3px]"
-        style={{ background: color }}
-        aria-hidden
-      />
-      {label}
-    </span>
-  )
 }
 
 export default async function StatePage({
@@ -89,6 +79,13 @@ export default async function StatePage({
 
   const us = getCountryBySlug("united-states")
   const counties = getCounties(state)
+  const neighbors = (STATE_NEIGHBORS[state.abbr] ?? [])
+    .map((abbr) => stateNavByAbbr[abbr])
+    .filter(Boolean)
+    .sort((a, b) => a.state.localeCompare(b.state))
+  const index = stateNav.findIndex((s) => s.slug === state.slug)
+  const prev = stateNav[(index - 1 + stateNav.length) % stateNav.length]
+  const next = stateNav[(index + 1) % stateNav.length]
   const population = latestPopulation(state)
   const stacked = stackPopulationHistory(state.populationHistory)
   const groups = Object.keys(POPULATION_GROUP_LABELS) as PopulationGroup[]
@@ -107,6 +104,9 @@ export default async function StatePage({
         10
     ) / 10
 
+  const cost = stateCost[state.abbr]
+  const costRows = costComparisonRows([cost, usCost])
+
   const comparison = us
     ? [
         { label: "Non-Hispanic White", state: `${nonHispanicWhite}%`, us: `${us.native}%`, color: COLORS.native },
@@ -124,12 +124,11 @@ export default async function StatePage({
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
-      <header className="mb-7">
-        <h1 className="sr-only">{state.state}</h1>
-        <p className="page-sub">
-          {state.population.toFixed(1)} million residents
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="United States"
+        title={state.state}
+        description={`${state.population.toFixed(1)} million residents`}
+      />
 
       <Card className="border-border bg-card shadow-none">
         <CardContent>
@@ -160,6 +159,12 @@ export default async function StatePage({
               value={`${state.thirtyMarriedHomeowner}%`}
               color={COLORS.thirtyMarriedHomeowner}
             />
+            <Stat label="Price level (US = 100)" value={formatRpp(cost.rpp)} color={COLORS.costOfLiving} />
+            <Stat
+              label="Median home value"
+              value={formatDollars(cost.medianHomeValue)}
+              color={COLORS.costOfLiving}
+            />
           </dl>
         </CardContent>
       </Card>
@@ -169,7 +174,7 @@ export default async function StatePage({
           <header className="mt-12 mb-7">
             <h2 className="section-title">Counties</h2>
             <p className="section-sub">
-              Demographics, the 2024 election, and religion across all {counties.length}{" "}
+              Demographics, the 2024 election, religion, and cost of living across all {counties.length}{" "}
               {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}. Switch views above the map,
               hover a county to preview its figures, click to open its page — or browse the full
               list below.
@@ -231,6 +236,43 @@ export default async function StatePage({
           </Card>
         </>
       )}
+
+      <header className="mt-12 mb-7">
+        <h2 className="section-title">Cost of living</h2>
+        <p className="section-sub">
+          Prices, incomes, and housing costs in {state.state} next to the national figures.
+        </p>
+      </header>
+
+      <Card className="border-border bg-card shadow-none">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Metric</TableHead>
+                <TableHead className="text-right">{state.state}</TableHead>
+                <TableHead className="text-right">United States</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {costRows.map((row) => (
+                <TableRow key={row.label}>
+                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell
+                    className="text-right font-medium tabular-nums"
+                    style={{ color: COLORS.costOfLiving }}
+                  >
+                    {row.values[0]}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {row.values[1]}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <header className="mt-12 mb-7">
         <h2 className="section-title">Population by ethnic group</h2>
@@ -307,7 +349,7 @@ export default async function StatePage({
       <footer className="fine-print mt-12 border-t border-border pt-6">
         <h2 className="section-title mb-3">Sources</h2>
         <ul className="grid gap-3">
-          {state.sources.map((source) => (
+          {[...state.sources, ...COST_SOURCES].map((source) => (
             <li key={source.url}>
               <a
                 href={source.url}
@@ -345,10 +387,37 @@ export default async function StatePage({
           chart use the nearest presidential election (1968, 1988, 2008, 2024); third-party
           candidates, such as George Wallace in 1968, are omitted, so the lines need not sum to
           100%. State GDP is shown in place of market capitalization, which is not published at
-          the state level.
+          the state level. Price levels are BEA Regional Price Parities for 2024; incomes, home
+          values, and rents are ACS 2020–2024 5-year medians, so they trail current prices.
           {state.notes?.map((note) => ` ${note}.`)}
         </p>
       </footer>
+
+      <nav aria-label="Other states" className="mt-12 space-y-4 border-t pt-6">
+        {neighbors.length > 0 && (
+          <div>
+            <h2 className="eyebrow mb-2">Neighboring states</h2>
+            <div className="flex flex-wrap gap-2">
+              {neighbors.map((n) => (
+                <Button key={n.slug} asChild size="sm" variant="secondary">
+                  <Link href={`/united-states/${n.slug}`}>{n.state}</Link>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex flex-wrap justify-between gap-2 text-sm">
+          <Link href={`/united-states/${prev.slug}`} className="text-muted-foreground hover:underline">
+            ← {prev.state}
+          </Link>
+          <Link href="/states" className="text-muted-foreground hover:underline">
+            All states
+          </Link>
+          <Link href={`/united-states/${next.slug}`} className="text-muted-foreground hover:underline">
+            {next.state} →
+          </Link>
+        </div>
+      </nav>
     </main>
   )
 }

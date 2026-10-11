@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { slugify } from "@/lib/demographics"
+import { countryHref } from "@/lib/demographics"
 
 export function Swatch({ color, label }: { color: string; label: string }) {
   return (
@@ -25,12 +25,47 @@ export function Swatch({ color, label }: { color: string; label: string }) {
   )
 }
 
+export function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div>
+      <dt className="eyebrow">{label}</dt>
+      <dd className="mt-1 text-[17px] font-semibold tabular-nums" style={{ color }}>
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+/** Visible page title, shared by every page: section eyebrow, h1, one-line description */
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow?: React.ReactNode
+  title: React.ReactNode
+  description?: React.ReactNode
+  children?: React.ReactNode
+}) {
+  return (
+    <header className="mb-7">
+      {eyebrow && <p className="eyebrow mb-1">{eyebrow}</p>}
+      <h1 className="page-title">{title}</h1>
+      {description && <p className="page-sub">{description}</p>}
+      {children}
+    </header>
+  )
+}
+
 export function TopicPage({
+  eyebrow,
   title,
   description,
   notes,
   children,
 }: {
+  eyebrow?: React.ReactNode
   title: React.ReactNode
   description: React.ReactNode
   notes?: React.ReactNode
@@ -38,12 +73,7 @@ export function TopicPage({
 }) {
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
-      <header className="mb-7">
-        <h1 className="sr-only">{title}</h1>
-        <p className="page-sub">
-          {description}
-        </p>
-      </header>
+      <PageHeader eyebrow={eyebrow} title={title} description={description} />
 
       {children}
 
@@ -57,32 +87,40 @@ export function TopicPage({
 
 export type RankingRow = {
   country: string
+  /** Defaults to the country's profile page */
+  href?: string
   value: string
   // Bar fill, 0–1.
   intensity: number
+  /** Defaults to the row's position */
+  rank?: number
 }
 
 export function RankingTable({
   rows,
   valueLabel,
+  nameLabel = "Country",
   intensityLabel = "Intensity",
   color,
   badgeClassName,
+  className = "mt-7",
 }: {
   rows: RankingRow[]
   valueLabel: string
+  nameLabel?: string
   intensityLabel?: string
   color: string
   badgeClassName: string
+  className?: string
 }) {
   return (
-    <Card className="mt-7 border-border bg-card shadow-none">
+    <Card className={`${className} border-border bg-card shadow-none`}>
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>Rank</TableHead>
-              <TableHead>Country</TableHead>
+              <TableHead>{nameLabel}</TableHead>
               <TableHead className="text-right">{valueLabel}</TableHead>
               <TableHead className="min-w-[8rem]">{intensityLabel}</TableHead>
             </TableRow>
@@ -95,11 +133,11 @@ export function RankingTable({
                     variant="secondary"
                     className={`min-w-7 justify-center rounded-full ${badgeClassName}`}
                   >
-                    {i + 1}
+                    {row.rank ?? i + 1}
                   </Badge>
                 </TableCell>
                 <TableCell className="font-medium">
-                  <Link href={`/${slugify(row.country)}`} className="hover:underline">
+                  <Link href={row.href ?? countryHref(row.country)} className="hover:underline">
                     {row.country}
                   </Link>
                 </TableCell>

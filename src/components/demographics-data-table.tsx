@@ -24,10 +24,10 @@ import {
 } from "@/components/ui/table"
 import {
   COLORS,
+  countryHref,
   demographicsData,
   formatMarketCap,
   formatMedianAge,
-  slugify,
   type CountryDemographics,
 } from "@/lib/demographics"
 import { cn } from "@/lib/utils"
@@ -78,7 +78,7 @@ const columns: ColumnDef<CountryDemographics>[] = [
     enableSorting: false,
     cell: ({ row }) => (
       <Link
-        href={`/${slugify(row.getValue("country"))}`}
+        href={countryHref(row.getValue("country"))}
         className="font-medium hover:underline"
       >
         {row.getValue("country")}

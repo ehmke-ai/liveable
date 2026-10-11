@@ -36,9 +36,12 @@ const crimsonPro = Crimson_Pro({
 })
 
 export const metadata: Metadata = {
-  title: "Demographics — Europe",
+  title: {
+    default: "basedmetrics.com — America by the numbers",
+    template: "%s — basedmetrics.com",
+  },
   description:
-    "Interactive Europe map with native/european population share vs Catholic, Protestant, and Orthodox affiliation, plus anti-immigration intensity rankings.",
+    "US demographics by state and county: non-Hispanic White share over time, religion, 2024 election results, immigration enforcement, and family formation, with Europe for comparison.",
 }
 
 export default function RootLayout({

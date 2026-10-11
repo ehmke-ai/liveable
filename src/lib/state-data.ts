@@ -1,6 +1,9 @@
 import generatedStates from "@/data/states.json"
 import { countiesByAbbr } from "@/data/counties"
+import countyCostData from "@/data/county-cost.json"
+import type { CountyCost } from "@/lib/cost-of-living"
 import {
+  countyLabel,
   countySlug,
   type CountyDemographics,
   type StateDemographics,
@@ -31,4 +34,27 @@ export function getCountyBySlug(
   slug: string
 ): CountyDemographics | undefined {
   return getCounties(state).find((c) => countySlug(c.name) === slug)
+}
+
+const countyCost = countyCostData as unknown as Record<string, CountyCost>
+
+/** ACS cost-of-living medians for a county, if it has any (not Connecticut's old counties) */
+export function getCountyCost(county: CountyDemographics): CountyCost | undefined {
+  return countyCost[county.fips]
+}
+
+/**
+ * County labels and state abbreviations (keyed by state FIPS) for the national county maps'
+ * tooltips; the figures themselves load client-side from county-history.json
+ */
+export function usCountyMapData(): { counties: [string, string][]; states: Record<string, string> } {
+  const counties: [string, string][] = []
+  const states: Record<string, string> = {}
+  for (const state of statesData) {
+    const stateCounties = getCounties(state)
+    if (!stateCounties.length) continue
+    states[stateCounties[0].fips.slice(0, 2)] = state.abbr
+    for (const c of stateCounties) counties.push([c.fips, countyLabel(c)])
+  }
+  return { counties, states }
 }

@@ -25,6 +25,7 @@ export const metadata: Metadata = topicMetadata("median-age")
 export default function MedianAgePage() {
   return (
     <TopicPage
+      eyebrow="Europe"
       title="Native / European age ranking"
       description="Countries ranked by median age of the native / European population. Lower = younger native age structure — younger ranks higher."
       notes={

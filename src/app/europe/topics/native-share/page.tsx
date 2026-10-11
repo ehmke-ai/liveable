@@ -19,6 +19,7 @@ export const metadata: Metadata = topicMetadata("native-share")
 export default function NativeSharePage() {
   return (
     <TopicPage
+      eyebrow="Europe"
       title="Native / European population share"
       description="Countries ranked by approximate native / European population share, and how that share has changed from 1960 to 2025. Higher = larger ethnic European / autochthonous share."
       notes={

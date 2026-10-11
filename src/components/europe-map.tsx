@@ -29,6 +29,7 @@ import {
 } from "@/components/us-county-map-export"
 import {
   COLORS,
+  countryHref,
   demographicsByIso,
   formatMedianAge,
   mapDemographicsData,
@@ -40,7 +41,6 @@ import {
   minMapThirtyMarriedHomeowner,
   minMapWealthShareUnder30,
   rangeIntensity,
-  slugify,
   type CountryDemographics,
 } from "@/lib/demographics"
 
@@ -772,13 +772,13 @@ export function EuropeMap() {
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-base font-semibold text-foreground">
-                  <Link href={`/${slugify(detail.country)}`} className="hover:underline">
+                  <Link href={countryHref(detail.country)} className="hover:underline">
                     {detail.country}
                   </Link>
                 </h3>
                 <div className="flex items-center gap-3">
                   <Link
-                    href={`/${slugify(detail.country)}`}
+                    href={countryHref(detail.country)}
                     className="text-xs text-muted-foreground underline-offset-2 hover:underline"
                   >
                     Full profile →

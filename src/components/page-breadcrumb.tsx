@@ -14,46 +14,43 @@ import {
 import { getCountryBySlug } from "@/lib/demographics"
 import countyLabels from "@/data/county-labels.json"
 import { stateNavBySlug } from "@/lib/states"
-import { topics } from "@/lib/topics"
+import { EUROPE_HOME_TOPIC, europeTopics } from "@/lib/topics"
 
 type Crumb = { label: string; href?: string }
 
 function crumbsForPathname(pathname: string): Crumb[] {
   const segments = pathname.split("/").filter(Boolean)
 
-  if (segments.length === 0) return [{ label: "Explore by topic" }]
+  if (segments.length === 0) return []
 
   const [section, slug] = segments
 
-  if (section === "topics" && slug) {
-    const topic = topics.find((t) => t.slug === slug)
-    return [
-      { label: "Topics", href: "/" },
-      { label: topic ? topic.label : slug },
-    ]
-  }
+  if (section === "states" && !slug) return [{ label: "All states" }]
 
   if (section === "united-states" && slug) {
     const state = stateNavBySlug[slug]
     const countySegment = segments[2]
-    if (state && countySegment) {
-      const labels: Record<string, string> | undefined =
-        countyLabels[state.slug as keyof typeof countyLabels]
-      return [
-        { label: "United States", href: "/united-states" },
-        { label: state.state, href: `/united-states/${state.slug}` },
-        { label: labels?.[countySegment] ?? countySegment },
-      ]
-    }
-    return [
-      { label: "United States", href: "/united-states" },
-      { label: state ? state.state : slug },
+    const stateCrumbs: Crumb[] = [
+      { label: "States", href: "/states" },
+      { label: state ? state.state : slug, href: `/united-states/${slug}` },
     ]
+    if (!countySegment) return stateCrumbs
+    const labels: Record<string, string> | undefined =
+      countyLabels[slug as keyof typeof countyLabels]
+    return [...stateCrumbs, { label: labels?.[countySegment] ?? countySegment }]
   }
 
-  if (segments.length === 1) {
-    const country = getCountryBySlug(section)
-    if (country) return [{ label: country.country }]
+  if (section === "europe") {
+    const europe: Crumb = { label: "Europe", href: "/europe" }
+    if (!slug) return [europe]
+    if (slug === "topics" && segments[2]) {
+      const topic = europeTopics.find(
+        (t) => t.slug === segments[2] && t.slug !== EUROPE_HOME_TOPIC
+      )
+      return [europe, { label: topic ? topic.label : segments[2] }]
+    }
+    const country = getCountryBySlug(slug)
+    return [europe, { label: country ? country.country : slug }]
   }
 
   return [{ label: pathname }]
@@ -67,7 +64,11 @@ export function PageBreadcrumb() {
     <Breadcrumb className="min-w-0">
       <BreadcrumbList className="flex-nowrap overflow-hidden">
         <BreadcrumbItem>
-          <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          {crumbs.length ? (
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          ) : (
+            <BreadcrumbPage>Home</BreadcrumbPage>
+          )}
         </BreadcrumbItem>
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1

@@ -1,0 +1,366 @@
+{
+ "US": {
+  "rpp": 100.0,
+  "rppHousing": 100.0,
+  "medianIncome": 80734,
+  "medianHomeValue": 332700,
+  "medianRent": 1413
+ },
+ "AK": {
+  "rpp": 102.4,
+  "rppHousing": 93.8,
+  "medianIncome": 92788,
+  "medianHomeValue": 352900,
+  "medianRent": 1419
+ },
+ "AL": {
+  "rpp": 88.8,
+  "rppHousing": 61.8,
+  "medianIncome": 63999,
+  "medianHomeValue": 209900,
+  "medianRent": 1007
+ },
+ "AR": {
+  "rpp": 86.9,
+  "rppHousing": 58.2,
+  "medianIncome": 60773,
+  "medianHomeValue": 188000,
+  "medianRent": 947
+ },
+ "AZ": {
+  "rpp": 100.7,
+  "rppHousing": 106.8,
+  "medianIncome": 79964,
+  "medianHomeValue": 394500,
+  "medianRent": 1543
+ },
+ "CA": {
+  "rpp": 110.7,
+  "rppHousing": 154.3,
+  "medianIncome": 99122,
+  "medianHomeValue": 734700,
+  "medianRent": 2036
+ },
+ "CO": {
+  "rpp": 103.1,
+  "rppHousing": 127.4,
+  "medianIncome": 95470,
+  "medianHomeValue": 539400,
+  "medianRent": 1761
+ },
+ "CT": {
+  "rpp": 103.6,
+  "rppHousing": 117.0,
+  "medianIncome": 95781,
+  "medianHomeValue": 366900,
+  "medianRent": 1488
+ },
+ "DC": {
+  "rpp": 109.9,
+  "rppHousing": 155.0,
+  "medianIncome": 109870,
+  "medianHomeValue": 737100,
+  "medianRent": 1954
+ },
+ "DE": {
+  "rpp": 99.8,
+  "rppHousing": 102.0,
+  "medianIncome": 84954,
+  "medianHomeValue": 352000,
+  "medianRent": 1401
+ },
+ "FL": {
+  "rpp": 103.4,
+  "rppHousing": 122.1,
+  "medianIncome": 74568,
+  "medianHomeValue": 359000,
+  "medianRent": 1669
+ },
+ "GA": {
+  "rpp": 96.3,
+  "rppHousing": 88.7,
+  "medianIncome": 77353,
+  "medianHomeValue": 303300,
+  "medianRent": 1393
+ },
+ "HI": {
+  "rpp": 110.0,
+  "rppHousing": 125.3,
+  "medianIncome": 100389,
+  "medianHomeValue": 839100,
+  "medianRent": 1971
+ },
+ "IA": {
+  "rpp": 87.8,
+  "rppHousing": 65.3,
+  "medianIncome": 75059,
+  "medianHomeValue": 208000,
+  "medianRent": 972
+ },
+ "ID": {
+  "rpp": 95.5,
+  "rppHousing": 90.0,
+  "medianIncome": 77800,
+  "medianHomeValue": 418600,
+  "medianRent": 1238
+ },
+ "IL": {
+  "rpp": 100.0,
+  "rppHousing": 93.9,
+  "medianIncome": 83390,
+  "medianHomeValue": 263300,
+  "medianRent": 1274
+ },
+ "IN": {
+  "rpp": 93.3,
+  "rppHousing": 73.9,
+  "medianIncome": 71957,
+  "medianHomeValue": 218200,
+  "medianRent": 1062
+ },
+ "KS": {
+  "rpp": 90.1,
+  "rppHousing": 71.2,
+  "medianIncome": 74275,
+  "medianHomeValue": 217200,
+  "medianRent": 1060
+ },
+ "KY": {
+  "rpp": 90.2,
+  "rppHousing": 64.3,
+  "medianIncome": 63726,
+  "medianHomeValue": 205600,
+  "medianRent": 967
+ },
+ "LA": {
+  "rpp": 88.2,
+  "rppHousing": 63.1,
+  "medianIncome": 60756,
+  "medianHomeValue": 216500,
+  "medianRent": 1064
+ },
+ "MA": {
+  "rpp": 105.8,
+  "rppHousing": 128.1,
+  "medianIncome": 103960,
+  "medianHomeValue": 562100,
+  "medianRent": 1762
+ },
+ "MD": {
+  "rpp": 105.0,
+  "rppHousing": 121.1,
+  "medianIncome": 103678,
+  "medianHomeValue": 419900,
+  "medianRent": 1705
+ },
+ "ME": {
+  "rpp": 97.0,
+  "rppHousing": 78.9,
+  "medianIncome": 74733,
+  "medianHomeValue": 296600,
+  "medianRent": 1139
+ },
+ "MI": {
+  "rpp": 96.2,
+  "rppHousing": 82.3,
+  "medianIncome": 72875,
+  "medianHomeValue": 231600,
+  "medianRent": 1129
+ },
+ "MN": {
+  "rpp": 98.6,
+  "rppHousing": 91.3,
+  "medianIncome": 89062,
+  "medianHomeValue": 329300,
+  "medianRent": 1280
+ },
+ "MO": {
+  "rpp": 90.8,
+  "rppHousing": 69.9,
+  "medianIncome": 70702,
+  "medianHomeValue": 230300,
+  "medianRent": 1033
+ },
+ "MS": {
+  "rpp": 87.0,
+  "rppHousing": 56.5,
+  "medianIncome": 56447,
+  "medianHomeValue": 169800,
+  "medianRent": 954
+ },
+ "MT": {
+  "rpp": 94.6,
+  "rppHousing": 84.6,
+  "medianIncome": 72509,
+  "medianHomeValue": 375800,
+  "medianRent": 1081
+ },
+ "NC": {
+  "rpp": 94.3,
+  "rppHousing": 81.4,
+  "medianIncome": 72388,
+  "medianHomeValue": 288900,
+  "medianRent": 1228
+ },
+ "ND": {
+  "rpp": 89.0,
+  "rppHousing": 71.4,
+  "medianIncome": 76657,
+  "medianHomeValue": 249900,
+  "medianRent": 954
+ },
+ "NE": {
+  "rpp": 90.1,
+  "rppHousing": 75.2,
+  "medianIncome": 76475,
+  "medianHomeValue": 238600,
+  "medianRent": 1072
+ },
+ "NH": {
+  "rpp": 104.2,
+  "rppHousing": 114.9,
+  "medianIncome": 99031,
+  "medianHomeValue": 402500,
+  "medianRent": 1491
+ },
+ "NJ": {
+  "rpp": 108.8,
+  "rppHousing": 134.3,
+  "medianIncome": 103556,
+  "medianHomeValue": 454400,
+  "medianRent": 1720
+ },
+ "NM": {
+  "rpp": 92.2,
+  "rppHousing": 73.6,
+  "medianIncome": 64059,
+  "medianHomeValue": 248100,
+  "medianRent": 1067
+ },
+ "NV": {
+  "rpp": 100.0,
+  "rppHousing": 114.1,
+  "medianIncome": 78260,
+  "medianHomeValue": 435400,
+  "medianRent": 1597
+ },
+ "NY": {
+  "rpp": 107.9,
+  "rppHousing": 122.2,
+  "medianIncome": 85974,
+  "medianHomeValue": 423800,
+  "medianRent": 1621
+ },
+ "OH": {
+  "rpp": 92.8,
+  "rppHousing": 73.0,
+  "medianIncome": 71389,
+  "medianHomeValue": 214800,
+  "medianRent": 1034
+ },
+ "OK": {
+  "rpp": 87.8,
+  "rppHousing": 62.8,
+  "medianIncome": 65039,
+  "medianHomeValue": 199800,
+  "medianRent": 1014
+ },
+ "OR": {
+  "rpp": 103.4,
+  "rppHousing": 108.6,
+  "medianIncome": 83011,
+  "medianHomeValue": 477600,
+  "medianRent": 1525
+ },
+ "PA": {
+  "rpp": 97.6,
+  "rppHousing": 85.1,
+  "medianIncome": 77971,
+  "medianHomeValue": 254500,
+  "medianRent": 1209
+ },
+ "RI": {
+  "rpp": 102.3,
+  "rppHousing": 105.6,
+  "medianIncome": 87796,
+  "medianHomeValue": 404200,
+  "medianRent": 1342
+ },
+ "SC": {
+  "rpp": 93.7,
+  "rppHousing": 80.5,
+  "medianIncome": 69324,
+  "medianHomeValue": 259000,
+  "medianRent": 1180
+ },
+ "SD": {
+  "rpp": 88.6,
+  "rppHousing": 67.6,
+  "medianIncome": 75081,
+  "medianHomeValue": 257400,
+  "medianRent": 946
+ },
+ "TN": {
+  "rpp": 91.9,
+  "rppHousing": 79.1,
+  "medianIncome": 69595,
+  "medianHomeValue": 286700,
+  "medianRent": 1189
+ },
+ "TX": {
+  "rpp": 97.1,
+  "rppHousing": 96.5,
+  "medianIncome": 78476,
+  "medianHomeValue": 283800,
+  "medianRent": 1403
+ },
+ "UT": {
+  "rpp": 98.9,
+  "rppHousing": 107.8,
+  "medianIncome": 95166,
+  "medianHomeValue": 489400,
+  "medianRent": 1496
+ },
+ "VA": {
+  "rpp": 101.1,
+  "rppHousing": 106.8,
+  "medianIncome": 93170,
+  "medianHomeValue": 383700,
+  "medianRent": 1579
+ },
+ "VT": {
+  "rpp": 98.0,
+  "rppHousing": 86.5,
+  "medianIncome": 81203,
+  "medianHomeValue": 316600,
+  "medianRent": 1234
+ },
+ "WA": {
+  "rpp": 107.0,
+  "rppHousing": 126.0,
+  "medianIncome": 98141,
+  "medianHomeValue": 564600,
+  "medianRent": 1760
+ },
+ "WI": {
+  "rpp": 94.1,
+  "rppHousing": 79.3,
+  "medianIncome": 77485,
+  "medianHomeValue": 266500,
+  "medianRent": 1087
+ },
+ "WV": {
+  "rpp": 89.5,
+  "rppHousing": 54.2,
+  "medianIncome": 59608,
+  "medianHomeValue": 162600,
+  "medianRent": 872
+ },
+ "WY": {
+  "rpp": 92.7,
+  "rppHousing": 71.1,
+  "medianIncome": 76176,
+  "medianHomeValue": 309700,
+  "medianRent": 992
+ }
+}

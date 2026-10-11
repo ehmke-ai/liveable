@@ -13,6 +13,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox"
 import { Button } from "@/components/ui/button"
+import { UsCountyCostMap } from "@/components/us-county-cost-map"
 import { UsCountyElectionMap } from "@/components/us-county-election-map"
 import { UsCountyMap, type UsCountyRow } from "@/components/us-county-map"
 import { UsCountyReligionMap } from "@/components/us-county-religion-map"
@@ -28,6 +29,7 @@ const VIEWS = [
   { key: "demographics", label: "Demographics" },
   { key: "election2024", label: "2024 election" },
   { key: "religion", label: "Religion" },
+  { key: "cost", label: "Cost of living" },
 ] as const
 
 type View = (typeof VIEWS)[number]["key"]
@@ -115,6 +117,9 @@ export function StateCountyMap({
       </div>
       <div className={view === "religion" ? undefined : "hidden"}>
         <UsCountyReligionMap {...mapProps} />
+      </div>
+      <div className={view === "cost" ? undefined : "hidden"}>
+        <UsCountyCostMap {...mapProps} />
       </div>
 
       <Combobox

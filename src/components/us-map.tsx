@@ -11,6 +11,11 @@ import { Download } from "lucide-react"
 
 import { ColorChooser } from "@/components/color-chooser"
 import { Button } from "@/components/ui/button"
+import {
+  COST_HIGH_COLOR,
+  COST_LOW_COLOR,
+  UsCountyCostMap,
+} from "@/components/us-county-cost-map"
 import { UsCountyElectionMap } from "@/components/us-county-election-map"
 import { UsCountyReligionMap } from "@/components/us-county-religion-map"
 import type { UsCountyRow } from "@/components/us-county-map"
@@ -26,6 +31,7 @@ import {
   shadeGradient,
   shadeStops,
 } from "@/components/us-county-map-export"
+import { formatDollars, formatRatio, formatRent, formatRpp, RPP_SOURCE } from "@/lib/cost-of-living"
 import { COLORS } from "@/lib/demographics"
 import {
   ELECTION_MARGIN_CAP,
@@ -35,21 +41,25 @@ import {
   formatElection2024,
   maxStateAntiImmig,
   maxStateNative,
+  maxStateRpp,
   maxStateThirtyMarriedHomeowner,
   maxStateWealthShareUnder30,
   minStateAntiImmig,
   minStateNative,
+  minStateRpp,
   minStateThirtyMarriedHomeowner,
   minStateWealthShareUnder30,
   rangeIntensity,
   stateNavByAbbr,
   stateMapByAbbr,
+  statePriceToIncome,
   stateMapData,
   type StateMapMetrics,
 } from "@/lib/states"
 
 type MapMetric =
   | "election2024"
+  | "costOfLiving"
   | "antiImmig"
   | "enforcement"
   | "native"
@@ -152,6 +162,20 @@ const METRICS: Record<MapMetric, MetricConfig> = {
     colorLabels: ["Harris color", "Trump color"],
     intensity: election2024Intensity,
     value: formatElection2024,
+  },
+  costOfLiving: {
+    title: "Cost of living by state",
+    subtitle:
+      "Regional Price Parity: how far prices for goods, rents, and services sit above or below the national average (US = 100).",
+    name: "Price level",
+    low: `${minStateRpp.toFixed(1)}`,
+    high: `${maxStateRpp.toFixed(1)}`,
+    source: RPP_SOURCE,
+    defaultColor: COST_HIGH_COLOR,
+    defaultLowColor: COST_LOW_COLOR,
+    colorLabels: ["Low color", "High color"],
+    intensity: (d) => rangeIntensity(d.cost.rpp, minStateRpp, maxStateRpp),
+    value: (d) => formatRpp(d.cost.rpp),
   },
   antiImmig: {
     title: "Immigration sentiment by state",
@@ -284,9 +308,10 @@ function strokeFor(selected: boolean, hovered: boolean): string {
 }
 
 /** The map tabs: the state metrics, plus views that only exist at county level */
-type MapView = MapMetric | "election2024County" | "religion"
+type MapView = MapMetric | "election2024County" | "religion" | "costCounty"
 
-type ElectionLevel = "county" | "state"
+/** Which level a tab with both a county and a state map shows */
+type MapLevel = "county" | "state"
 
 /**
  * `countyMap` replaces the state map while Demographics is selected (the county-level
@@ -304,11 +329,13 @@ export function UsMap({
   const [features, setFeatures] = useState<StateFeature[]>([])
   const [view, setView] = useState<MapView>("native")
   // Which level the 2024 election tab shows; remembered when switching away and back
-  const [electionLevel, setElectionLevel] = useState<ElectionLevel>("county")
+  const [electionLevel, setElectionLevel] = useState<MapLevel>("county")
+  const [costLevel, setCostLevel] = useState<MapLevel>("county")
   // County-only views hide the state map, so any state metric will do behind them
   const metric: MapMetric =
-    view === "election2024County" || view === "religion" ? "native" : view
+    view === "election2024County" || view === "religion" || view === "costCounty" ? "native" : view
   const electionActive = view === "election2024" || view === "election2024County"
+  const costActive = view === "costOfLiving" || view === "costCounty"
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null)
@@ -376,7 +403,8 @@ export function UsMap({
   const showCounties = view === "native"
   const showElection = view === "election2024County"
   const showReligion = view === "religion"
-  const showStates = !showCounties && !showElection && !showReligion
+  const showCost = view === "costCounty"
+  const showStates = !showCounties && !showElection && !showReligion && !showCost
 
   const labels = useMemo(
     () =>
@@ -422,29 +450,42 @@ export function UsMap({
     }
   }
 
-  // Sits beside the legend on both 2024 election maps
-  const electionLevelToggle = (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground">Show by</span>
-      <div className="inline-flex gap-1" role="group" aria-label="2024 election level">
-        {(["county", "state"] as const).map((level) => (
-          <Button
-            key={level}
-            type="button"
-            size="xs"
-            variant={electionLevel === level ? "default" : "secondary"}
-            aria-pressed={electionLevel === level}
-            onClick={() => {
-              setElectionLevel(level)
-              setView(level === "county" ? "election2024County" : "election2024")
-            }}
-          >
-            {level === "county" ? "County" : "State"}
-          </Button>
-        ))}
+  // Sits beside the legend on both maps of a tab that has a county and a state level
+  function levelToggle(
+    label: string,
+    current: MapLevel,
+    onChange: (level: MapLevel) => void
+  ) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">Show by</span>
+        <div className="inline-flex gap-1" role="group" aria-label={label}>
+          {(["county", "state"] as const).map((level) => (
+            <Button
+              key={level}
+              type="button"
+              size="xs"
+              variant={current === level ? "default" : "secondary"}
+              aria-pressed={current === level}
+              onClick={() => onChange(level)}
+            >
+              {level === "county" ? "County" : "State"}
+            </Button>
+          ))}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  const electionLevelToggle = levelToggle("2024 election level", electionLevel, (level) => {
+    setElectionLevel(level)
+    setView(level === "county" ? "election2024County" : "election2024")
+  })
+
+  const costLevelToggle = levelToggle("Cost of living level", costLevel, (level) => {
+    setCostLevel(level)
+    setView(level === "county" ? "costCounty" : "costOfLiving")
+  })
 
   return (
     <div className="space-y-4">
@@ -472,6 +513,14 @@ export function UsMap({
           onClick={() => setView("religion")}
         >
           Religion
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={costActive ? "default" : "secondary"}
+          onClick={() => setView(costLevel === "county" ? "costCounty" : "costOfLiving")}
+        >
+          Cost of living
         </Button>
         <Button
           type="button"
@@ -526,6 +575,13 @@ export function UsMap({
       <div className={showReligion ? undefined : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
           <UsCountyReligionMap {...electionCounties} />
+          <div className="hidden sm:block sm:w-32" aria-hidden />
+        </div>
+      </div>
+
+      <div className={showCost ? undefined : "hidden"}>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <UsCountyCostMap {...electionCounties} legendExtra={costLevelToggle} />
           <div className="hidden sm:block sm:w-32" aria-hidden />
         </div>
       </div>
@@ -698,6 +754,7 @@ export function UsMap({
           </div>
           {metric === "antiImmig" && <LegendSwatch color={NO_DATA_FILL} label="No data" />}
           {metric === "election2024" && electionLevelToggle}
+          {metric === "costOfLiving" && costLevelToggle}
           <span className="ml-auto text-muted-foreground">{config.source}</span>
         </figcaption>
       </figure>
@@ -765,6 +822,26 @@ export function UsMap({
                   value={`${detail.wealthShareUnder30}%`}
                   color={COLORS.wealthShareUnder30}
                 />
+                <Stat
+                  label="Price level (US = 100)"
+                  value={formatRpp(detail.cost.rpp)}
+                  color={COLORS.costOfLiving}
+                />
+                <Stat
+                  label="Median household income"
+                  value={formatDollars(detail.cost.medianIncome)}
+                  color={COLORS.costOfLiving}
+                />
+                <Stat
+                  label="Median home value"
+                  value={`${formatDollars(detail.cost.medianHomeValue)} (${formatRatio(statePriceToIncome(detail))} income)`}
+                  color={COLORS.costOfLiving}
+                />
+                <Stat
+                  label="Median rent"
+                  value={formatRent(detail.cost.medianRent)}
+                  color={COLORS.costOfLiving}
+                />
               </dl>
             </div>
           ) : (
@@ -797,7 +874,9 @@ export function UsMap({
         surveyed). Enforcement laws &amp; ICE: state legislation on ICE detainers, 287(g),
         information sharing, anti-sanctuary mandates, and state immigration crimes, averaged
         on ILRC&apos;s 1–5 scale (1 = most enforcement, 5 = most protective; ILRC State Map on
-        Immigration Enforcement, July 2026).
+        Immigration Enforcement, July 2026). Cost of living: BEA Regional Price Parities for
+        2024 (all goods and services, US = 100) by state; ACS 2020–2024 median household income,
+        home value, and gross rent by county.
         Demographics: county shares of the same groups as the state ethnic chart — European
         (non-Hispanic White minus Arab ancestry), Hispanic, African (non-Hispanic Black), Indian,
         East Asian, Arab, Native American (non-Hispanic American Indian and Alaska Native), and

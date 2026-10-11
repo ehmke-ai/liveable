@@ -11,6 +11,7 @@ export const metadata: Metadata = topicMetadata("map")
 export default function MapPage() {
   return (
     <TopicPage
+      eyebrow="Europe"
       title="The Europe Map"
       description={
         <>

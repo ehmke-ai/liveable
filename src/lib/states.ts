@@ -1,3 +1,4 @@
+import { priceToIncome, stateCost, type CostOfLiving } from "@/lib/cost-of-living"
 import { slugify, type PoliticalLeanPoint } from "@/lib/demographics"
 
 /**
@@ -252,9 +253,11 @@ export type StateMapMetrics = {
   trump2024: number
   /** 2024 presidential election, % of the statewide popular vote for Harris (certified results) */
   harris2024: number
+  /** Price parities and ACS medians (scripts/build-cost-of-living.py) */
+  cost: CostOfLiving
 }
 
-export const stateMapData: StateMapMetrics[] = [
+const stateMapRows: Omit<StateMapMetrics, "cost">[] = [
   { state: "Alabama", abbr: "AL", native: 62, antiImmig: 47, gdp: 341, enforcementScore: 2.2, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8, trump2024: 64.6, harris2024: 34.1 },
   { state: "Alaska", abbr: "AK", native: 57, antiImmig: 30, gdp: 75, enforcementScore: 3.0, enforcementTier: "noLaws", thirtyMarriedHomeowner: 26, wealthShareUnder30: 6, trump2024: 54.5, harris2024: 41.4 },
   { state: "Arizona", abbr: "AZ", native: 51, antiImmig: 31, gdp: 598, enforcementScore: 2.3, enforcementTier: "comprehensiveEnforcement", thirtyMarriedHomeowner: 27, wealthShareUnder30: 6, trump2024: 52.2, harris2024: 46.7 },
@@ -308,6 +311,11 @@ export const stateMapData: StateMapMetrics[] = [
   { state: "Wyoming", abbr: "WY", native: 81, antiImmig: 48, gdp: 53, enforcementScore: 2.9, enforcementTier: "someParticipation", thirtyMarriedHomeowner: 34, wealthShareUnder30: 8, trump2024: 71.6, harris2024: 25.8 },
 ]
 
+export const stateMapData: StateMapMetrics[] = stateMapRows.map((s) => ({
+  ...s,
+  cost: stateCost[s.abbr],
+}))
+
 /** Name, slug, and abbreviation for every state: safe to import from client components */
 export const stateNav: { state: string; slug: string; abbr: string }[] = stateMapData.map((s) => ({
   state: s.state,
@@ -343,6 +351,14 @@ export const minStateWealthShareUnder30 = Math.min(
 export const maxStateWealthShareUnder30 = Math.max(
   ...stateMapData.map((s) => s.wealthShareUnder30)
 )
+
+export const minStateRpp = Math.min(...stateMapData.map((s) => s.cost.rpp))
+export const maxStateRpp = Math.max(...stateMapData.map((s) => s.cost.rpp))
+
+/** Median home value over median household income */
+export function statePriceToIncome(d: Pick<StateMapMetrics, "cost">): number {
+  return priceToIncome(d.cost.medianHomeValue, d.cost.medianIncome) ?? 0
+}
 
 /** Enforcement intensity in [0, 1] — more ICE cooperation (lower ILRC score) scores higher */
 export function enforcementIntensity(score: number): number {

@@ -1,8 +1,14 @@
+import type { Metadata } from "next"
 import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 
-import { DemographicsBarChart } from "@/components/demographics-bar-chart"
-import { DemographicsDataTable } from "@/components/demographics-data-table"
-import { Swatch, TopicPage } from "@/components/topic-page"
+import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
+import { PlaceSearch } from "@/components/place-search"
+import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
+import { PageHeader, RankingTable, Stat, Swatch } from "@/components/topic-page"
+import { UsCountyMap } from "@/components/us-county-map"
+import { UsMap } from "@/components/us-map"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -11,77 +17,299 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { COLORS, demographicsData } from "@/lib/demographics"
-import { HOME_TOPIC, topicHref, topics } from "@/lib/topics"
+import { formatRatio } from "@/lib/cost-of-living"
+import { COUNTY_HISTORY_YEARS } from "@/lib/county-history"
+import {
+  COLORS,
+  demographicsData,
+  formatMedianAge,
+  getCountryBySlug,
+  getCountryRankings,
+  getNativeShareHistory,
+} from "@/lib/demographics"
+import { usCountyMapData } from "@/lib/state-data"
+import {
+  election2024Margin,
+  ENFORCEMENT_TIER_LABELS,
+  maxStateEnforcementScore,
+  maxStateNative,
+  maxStateThirtyMarriedHomeowner,
+  minStateEnforcementScore,
+  rangeIntensity,
+  stateMapData,
+  stateNavByAbbr,
+  statePriceToIncome,
+  type StateMapMetrics,
+} from "@/lib/states"
+
+export const metadata: Metadata = {
+  title: { absolute: "basedmetrics.com — America by the numbers" },
+}
+
+/** 2024 national popular vote, certified results (FEC) */
+const NATIONAL_2024 = { trump: 49.8, harris: 48.3 }
+
+const LEADERBOARD_SIZE = 5
+
+function stateHref(s: StateMapMetrics): string {
+  return `/united-states/${stateNavByAbbr[s.abbr].slug}`
+}
+
+function top(
+  compare: (a: StateMapMetrics, b: StateMapMetrics) => number
+): StateMapMetrics[] {
+  return [...stateMapData].sort(compare).slice(0, LEADERBOARD_SIZE)
+}
+
+const maxTrumpMargin = Math.max(...stateMapData.map(election2024Margin))
+const maxPriceToIncome = Math.max(...stateMapData.map(statePriceToIncome))
+
+const leaderboards = [
+  {
+    title: "Highest non-Hispanic White share",
+    valueLabel: "Share",
+    color: COLORS.native,
+    rows: top((a, b) => b.native - a.native).map((s) => ({
+      country: s.state,
+      href: stateHref(s),
+      value: `${s.native}%`,
+      intensity: s.native / maxStateNative,
+    })),
+  },
+  {
+    title: "Most ICE cooperation",
+    valueLabel: "Tier",
+    color: COLORS.enforcement,
+    rows: top((a, b) => a.enforcementScore - b.enforcementScore).map((s) => ({
+      country: s.state,
+      href: stateHref(s),
+      value: ENFORCEMENT_TIER_LABELS[s.enforcementTier],
+      intensity:
+        1 - rangeIntensity(s.enforcementScore, minStateEnforcementScore, maxStateEnforcementScore),
+    })),
+  },
+  {
+    title: "Largest Trump margin, 2024",
+    valueLabel: "Margin",
+    color: COLORS.rightWing,
+    rows: top((a, b) => election2024Margin(b) - election2024Margin(a)).map((s) => ({
+      country: s.state,
+      href: stateHref(s),
+      value: `R+${election2024Margin(s).toFixed(1)}`,
+      intensity: election2024Margin(s) / maxTrumpMargin,
+    })),
+  },
+  {
+    title: "Most married homeowners at 30",
+    valueLabel: "Share",
+    color: COLORS.thirtyMarriedHomeowner,
+    rows: top((a, b) => b.thirtyMarriedHomeowner - a.thirtyMarriedHomeowner).map((s) => ({
+      country: s.state,
+      href: stateHref(s),
+      value: `${s.thirtyMarriedHomeowner}%`,
+      intensity: s.thirtyMarriedHomeowner / maxStateThirtyMarriedHomeowner,
+    })),
+  },
+  {
+    title: "Most affordable homes",
+    valueLabel: "Price ÷ income",
+    color: COLORS.costOfLiving,
+    rows: top((a, b) => statePriceToIncome(a) - statePriceToIncome(b)).map((s) => ({
+      country: s.state,
+      href: stateHref(s),
+      value: formatRatio(statePriceToIncome(s)),
+      intensity: statePriceToIncome(s) / maxPriceToIncome,
+    })),
+  },
+  {
+    title: "Least affordable homes",
+    valueLabel: "Price ÷ income",
+    color: COLORS.costOfLiving,
+    rows: top((a, b) => statePriceToIncome(b) - statePriceToIncome(a)).map((s) => ({
+      country: s.state,
+      href: stateHref(s),
+      value: formatRatio(statePriceToIncome(s)),
+      intensity: statePriceToIncome(s) / maxPriceToIncome,
+    })),
+  },
+]
+
+function SectionHeader({
+  id,
+  title,
+  children,
+}: {
+  id: string
+  title: string
+  children?: React.ReactNode
+}) {
+  return (
+    <header id={id} className="mt-12 mb-7 scroll-mt-16">
+      <h2 className="section-title">{title}</h2>
+      {children && <p className="section-sub">{children}</p>}
+    </header>
+  )
+}
 
 export default function HomePage() {
-  return (
-    <TopicPage
-      title="Explore by topic"
-      description="Demographic, religious, political, and economic indicators for European countries and the United States."
-      notes={
-        <>
-          Most countries do not publish official “race” statistics. “Native / European” uses
-          approximate ethnic European / autochthonous shares; the United States uses Census
-          Bureau non-Hispanic White share (2023). Catholic, Protestant, and Orthodox figures use
-          recent church membership or self-identification (fowid/DBK/EKD for Germany, Statistik
-          Austria for Austria, FSO for Switzerland, CBS for Netherlands, SSB / Church of Norway,
-          Church of Sweden, Church of Denmark / Statistics Denmark, Polish census, Ipsos/CESNUR
-          for Italy, Ifop/INSEE for France, CSO Census 2022 for Ireland, Pew Religious Landscape
-          Study 2023–24 for the United States).
-        </>
-      }
-    >
-      <nav aria-label="Topics">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {topics
-            .filter((t) => t.slug !== HOME_TOPIC)
-            .map((t) => (
-              <Link key={t.slug} href={topicHref(t.slug)} className="group">
-                <Card className="h-full border-border bg-card shadow-none transition-colors group-hover:bg-muted/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <t.icon className="size-4 shrink-0 text-muted-foreground" />
-                      {t.label}
-                    </CardTitle>
-                    <CardDescription>{t.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-        </div>
-      </nav>
+  const us = getCountryBySlug("united-states")
+  if (!us) throw new Error("Missing United States data")
 
-      <header className="mt-12 mb-7">
-        <h2 className="section-title">
-          Native / European &amp; Christian share
-        </h2>
-        <p className="section-sub">
-          Approximate percentages for {demographicsData.length} countries — native/european
-          population share vs. Catholic, Protestant, and Orthodox affiliation.
-        </p>
-      </header>
+  const countyMapData = usCountyMapData()
+  const nativeHistory = getNativeShareHistory(us.country)
+  const nativeChange = us.native - nativeHistory[0].native
+  const rankings = getCountryRankings(us.country)
+
+  return (
+    <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
+      <PageHeader
+        title="America by the numbers"
+        description="Who lives where, what they believe, how they vote, what it costs to live there, and whether young Americans can still marry and buy a home — for every state and county."
+      >
+        <PlaceSearch className="mt-5 max-w-md" />
+      </PageHeader>
 
       <Card className="border-border bg-card shadow-none">
-        <CardContent className="pt-6">
-          <div className="hidden md:block">
-            <DemographicsBarChart />
-          </div>
-          <Separator className="my-4" />
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Swatch color={COLORS.native} label="Native / European (approx.)" />
-            <Swatch color={COLORS.catholic} label="Catholic" />
-            <Swatch color={COLORS.protestant} label="Protestant" />
-            <Swatch color={COLORS.orthodox} label="Orthodox" />
-          </div>
+        <CardContent>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+            <Stat label="Non-Hispanic White" value={`${us.native}%`} color={COLORS.native} />
+            <Stat
+              label={`Change since ${nativeHistory[0].year}`}
+              value={`${nativeChange > 0 ? "+" : ""}${nativeChange} pts`}
+              color={COLORS.native}
+            />
+            <Stat label="Foreign-born" value={`${us.foreignBorn}%`} />
+            <Stat
+              label="Christian"
+              value={`${us.catholic + us.protestant + us.orthodox}%`}
+              color={COLORS.protestant}
+            />
+            <Stat
+              label="2024 popular vote"
+              value={`R+${(NATIONAL_2024.trump - NATIONAL_2024.harris).toFixed(1)}`}
+              color={COLORS.rightWing}
+            />
+            <Stat
+              label="NH White median age"
+              value={`${formatMedianAge(us.medianAge)} yrs`}
+              color={COLORS.medianAge}
+            />
+          </dl>
         </CardContent>
       </Card>
 
-      <Card className="mt-7 border-border bg-card shadow-none">
-        <CardContent className="p-0">
-          <DemographicsDataTable />
-        </CardContent>
-      </Card>
-    </TopicPage>
+      <SectionHeader id="map" title="The map">
+        Switch metrics, hover a state for a preview, and click it for its full profile and county
+        map. The county views show ethnicity over time, the 2024 result, religion, and housing
+        costs.
+      </SectionHeader>
+      <UsMap
+        countyMap={<UsCountyMap {...countyMapData} years={COUNTY_HISTORY_YEARS} />}
+        electionCounties={countyMapData}
+      />
+
+      <SectionHeader id="leaderboards" title="Leaderboards">
+        The top {LEADERBOARD_SIZE} states on each measure.{" "}
+        <Link href="/states" className="underline-offset-2 hover:underline">
+          Compare all states →
+        </Link>
+      </SectionHeader>
+      <div className="grid gap-x-4 gap-y-7 md:grid-cols-2">
+        {leaderboards.map((board) => (
+          <section key={board.title}>
+            <h3 className="eyebrow mb-2">{board.title}</h3>
+            <RankingTable
+              className=""
+              rows={board.rows}
+              nameLabel="State"
+              valueLabel={board.valueLabel}
+              intensityLabel="Relative"
+              color={board.color}
+              badgeClassName="bg-foreground/15 text-foreground hover:bg-foreground/15"
+            />
+          </section>
+        ))}
+      </div>
+
+      <SectionHeader id="trends" title="Trends">
+        Non-Hispanic White share of the population and the presidential popular vote since 1960.
+      </SectionHeader>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-border bg-card shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle>Non-Hispanic White share</CardTitle>
+            <CardDescription>Census, 1960 to 2025</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NativeShareTrendChart country={us.country} hideSelector />
+            <Separator className="my-4" />
+            <Swatch color={COLORS.native} label="Non-Hispanic White share" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle>Presidential popular vote</CardTitle>
+            <CardDescription>Democratic vs. Republican, 1960 to 2024</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PoliticalLeanTrendChart country={us.country} hideSelector hideWings />
+            <Separator className="my-4" />
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              <Swatch color={COLORS.leftOfCenter} label="Democratic" />
+              <Swatch color={COLORS.rightOfCenter} label="Republican" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <SectionHeader id="compare" title="How the US compares">
+        Where the United States lands among all {demographicsData.length} countries in the data
+        set.
+      </SectionHeader>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {rankings.map((r) => (
+          <Card key={r.label} className="border-border bg-card shadow-none">
+            <CardContent className="flex items-center justify-between gap-4 pt-6">
+              <div>
+                <div className="eyebrow">{r.label}</div>
+                <div className="tabular-nums font-medium" style={{ color: r.color }}>
+                  {r.value}
+                </div>
+              </div>
+              <Badge
+                variant="secondary"
+                className="min-w-10 justify-center rounded-full bg-foreground/15 text-foreground hover:bg-foreground/15"
+              >
+                {r.rank} / {r.total}
+              </Badge>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Link href="/europe" className="group mt-4 block">
+        <Card className="border-border bg-card shadow-none transition-colors group-hover:bg-muted/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Compare with Europe
+              <ArrowRight className="size-4 text-muted-foreground" />
+            </CardTitle>
+            <CardDescription>
+              Native share, Christian affiliation, and anti-immigration sentiment across{" "}
+              {demographicsData.length - 1} European countries, down to the regional level.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </Link>
+
+      <footer className="fine-print mt-6 max-w-3xl">
+        <strong className="font-semibold text-foreground">Notes:</strong> Non-Hispanic White uses
+        Census Bureau estimates (2023 nationally; Vintage 2025 less Arab ancestry by state).
+        Christian affiliation is from the Pew Religious Landscape Study 2023–24. Immigration
+        enforcement tiers are from the ILRC State Map on Immigration Enforcement. Married
+        homeowner at 30 is estimated from ACS 2024 1-year tables. Home affordability is median home
+        value over median household income (ACS 2020–2024 5-year). Election results are certified
+        2024 popular vote. Values are rounded.
+      </footer>
+    </main>
   )
 }

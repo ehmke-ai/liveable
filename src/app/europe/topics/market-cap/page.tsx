@@ -25,6 +25,7 @@ export const metadata: Metadata = topicMetadata("market-cap")
 export default function MarketCapPage() {
   return (
     <TopicPage
+      eyebrow="Europe"
       title="Economy size by market capitalization"
       description={
         <>

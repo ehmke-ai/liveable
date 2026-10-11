@@ -18,6 +18,7 @@ export const metadata: Metadata = topicMetadata("anti-immigration")
 export default function AntiImmigrationPage() {
   return (
     <TopicPage
+      eyebrow="Europe"
       title="Anti-immigration intensity ranking"
       description="Countries ranked by opposition to immigration from poorer countries outside Europe (ESS 2023 for Europe; ESS Round 9/10 for Denmark; Gallup for the United States). Higher = more opposition."
       notes={

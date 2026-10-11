@@ -15,12 +15,12 @@ export type Topic = {
   icon: LucideIcon
 }
 
-// The home page shows this topic instead of it having its own page.
-export const HOME_TOPIC = "religion"
+// The Europe overview (/europe) shows this topic instead of it having its own page.
+export const EUROPE_HOME_TOPIC = "religion"
 
-// Each topic is a page at /topics/<slug> (except HOME_TOPIC); order here is the order in
-// the sidebar.
-export const topics: Topic[] = [
+// Each Europe topic is a page at /europe/topics/<slug> (except EUROPE_HOME_TOPIC); order
+// here is the order in the sidebar.
+export const europeTopics: Topic[] = [
   {
     slug: "religion",
     label: "Native & Christian share",
@@ -60,12 +60,12 @@ export const topics: Topic[] = [
   },
 ]
 
-export function topicHref(slug: string): string {
-  return slug === HOME_TOPIC ? "/" : `/topics/${slug}`
+export function europeTopicHref(slug: string): string {
+  return slug === EUROPE_HOME_TOPIC ? "/europe" : `/europe/topics/${slug}`
 }
 
 export function topicMetadata(slug: string): { title: string; description: string } {
-  const topic = topics.find((t) => t.slug === slug)
+  const topic = europeTopics.find((t) => t.slug === slug)
   if (!topic) throw new Error(`Unknown topic: ${slug}`)
-  return { title: `${topic.label} — Demographics`, description: topic.description }
+  return { title: `${topic.label} — Europe`, description: topic.description }
 }

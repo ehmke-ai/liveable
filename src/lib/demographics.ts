@@ -94,6 +94,11 @@ export function getCountryBySlug(slug: string): CountryDemographics | undefined 
   return countryBySlug[slug]
 }
 
+/** The United States' profile is the home page; every other country lives under /europe */
+export function countryHref(country: string): string {
+  return country === "United States" ? "/" : `/europe/${slugify(country)}`
+}
+
 export const rankedByNative = [...demographicsData].sort(
   (a, b) => b.native - a.native
 )
@@ -558,4 +563,5 @@ export const COLORS = {
   rightWing: "#b91c1c",
   thirtyMarriedHomeowner: "#8b5cf6",
   wealthShareUnder30: "#22c55e",
+  costOfLiving: "#c2410c",
 } as const

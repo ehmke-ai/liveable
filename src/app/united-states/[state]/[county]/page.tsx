@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 
 import { POPULATION_COLORS } from "@/components/population-stack-chart"
+import { PageHeader, Stat } from "@/components/topic-page"
 import {
   Card,
   CardContent,
@@ -17,6 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  COST_SOURCES,
+  costComparisonRows,
+  countyCostPlace,
+  stateCost,
+  usCost,
+} from "@/lib/cost-of-living"
 import { COLORS, getCountryBySlug } from "@/lib/demographics"
 import {
   countyEthnicBreakdown,
@@ -25,7 +33,13 @@ import {
   foldedCountyBreakdown,
   latestPopulation,
 } from "@/lib/states"
-import { getCounties, getCountyBySlug, getStateBySlug, statesData } from "@/lib/state-data"
+import {
+  getCounties,
+  getCountyBySlug,
+  getCountyCost,
+  getStateBySlug,
+  statesData,
+} from "@/lib/state-data"
 
 export function generateStaticParams() {
   return statesData.flatMap((s) =>
@@ -43,20 +57,9 @@ export async function generateMetadata({
   const data = state && getCountyBySlug(state, county)
   if (!state || !data) return { title: "County not found" }
   return {
-    title: `${countyLabel(data)}, ${state.state} — Demographics`,
+    title: `${countyLabel(data)}, ${state.state}`,
     description: `Demographic breakdown for ${countyLabel(data)}, ${state.state}.`,
   }
-}
-
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div>
-      <dt className="eyebrow">{label}</dt>
-      <dd className="mt-1 text-[17px] font-semibold tabular-nums" style={{ color }}>
-        {value}
-      </dd>
-    </div>
-  )
 }
 
 export default async function CountyPage({
@@ -75,6 +78,10 @@ export default async function CountyPage({
   const statePopulation = latestPopulation(state)
   const breakdown = foldedCountyBreakdown(state, data)
   const countyEthnic = countyEthnicBreakdown(state, data)
+  const countyCost = getCountyCost(data)
+  const costRows = countyCost
+    ? costComparisonRows([countyCostPlace(countyCost), stateCost[state.abbr], usCost])
+    : []
 
   const comparison = [
     {
@@ -123,9 +130,7 @@ export default async function CountyPage({
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-10 sm:px-6">
-      <header className="mb-7">
-        <h1 className="sr-only">{label}</h1>
-      </header>
+      <PageHeader eyebrow={state.state} title={label} />
 
       <Card className="border-border bg-card shadow-none">
         <CardHeader className="pb-2">
@@ -190,10 +195,56 @@ export default async function CountyPage({
         </CardContent>
       </Card>
 
+      {costRows.length > 0 && (
+        <>
+          <header className="mt-12 mb-7">
+            <h2 className="section-title">Cost of living</h2>
+            <p className="section-sub">
+              Incomes and housing costs in {label} next to {state.state} and the nation. Price
+              levels are published for states, not counties.
+            </p>
+          </header>
+
+          <Card className="border-border bg-card shadow-none">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Metric</TableHead>
+                    <TableHead className="text-right">{label}</TableHead>
+                    <TableHead className="text-right">{state.state}</TableHead>
+                    <TableHead className="text-right">United States</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {costRows.map((row) => (
+                    <TableRow key={row.label}>
+                      <TableCell className="font-medium">{row.label}</TableCell>
+                      <TableCell
+                        className="text-right font-medium tabular-nums"
+                        style={{ color: COLORS.costOfLiving }}
+                      >
+                        {row.values[0]}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {row.values[1]}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {row.values[2]}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
       <footer className="fine-print mt-12 border-t border-border pt-6">
         <h2 className="section-title mb-3">Sources</h2>
         <ul className="grid gap-3">
-          {state.sources.map((source) => (
+          {[...state.sources, ...(countyCost ? COST_SOURCES : [])].map((source) => (
             <li key={source.url}>
               <a
                 href={source.url}
