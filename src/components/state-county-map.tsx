@@ -25,13 +25,13 @@ import {
   type StateDemographics,
 } from "@/lib/states"
 
-/** The same county-level views as the US map, in the same order */
+/** County-level views on a state page. Work visas is the default. */
 const VIEWS = [
+  { key: "visas", label: "Work visas" },
   { key: "demographics", label: "Demographics" },
   { key: "election2024", label: "2024 election" },
   { key: "religion", label: "Religion" },
   { key: "cost", label: "Cost of living" },
-  { key: "visas", label: "Work visas" },
 ] as const
 
 type View = (typeof VIEWS)[number]["key"]
@@ -66,7 +66,7 @@ export function StateCountyMap({
   years: number[]
 }) {
   const router = useRouter()
-  const [view, setView] = useState<View>("demographics")
+  const [view, setView] = useState<View>("visas")
 
   const byFips = useMemo(() => Object.fromEntries(data.map((c) => [c.fips, c])), [data])
   const sortedCounties = useMemo(
