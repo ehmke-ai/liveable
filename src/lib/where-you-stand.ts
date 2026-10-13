@@ -126,7 +126,7 @@ export const whereYouStandSources = [
   {
     label: "Job visas by county and field, FY 2025",
     detail:
-      "Department of Labor, OFLC disclosure files, FY 2025. H-1B, H-1B1, and E-3 positions come from the LCA files, Q1–Q4. H-2A and H-2B workers come from the full-year files and include partial certifications. Duplicate case numbers are kept once and counted at the primary worksite county. The field is the occupation’s SOC major group. A certified slot is not a person admitted, and the same worker can be certified under more than one program in the same year. L-1, TN, O-1, and student work permits are not in these files.",
+      "Department of Labor, OFLC disclosure files, FY 2025. H-1B, H-1B1, and E-3 positions come from the LCA files, Q1–Q4. H-2A and H-2B workers come from the full-year files and include partial certifications. Duplicate case numbers are kept once and counted at the primary worksite county. The field is the occupation’s SOC major group. Remote on Where you stand sums the same county counts for the selected field across the country. A certified slot is not a person admitted, and the same worker can be certified under more than one program in the same year. L-1, TN, O-1, and student work permits are not in these files.",
     url: "https://www.dol.gov/agencies/eta/foreign-labor/performance",
   },
   {
