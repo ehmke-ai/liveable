@@ -36,6 +36,13 @@ import {
 import { formatDollars, formatRatio, formatRent, formatRpp, RPP_SOURCE } from "@/lib/cost-of-living"
 import { COLORS } from "@/lib/demographics"
 import {
+  mapLevel,
+  nationalMapHref,
+  nationalMapView,
+  type MapLevel,
+  type NationalMapView,
+} from "@/lib/map-view"
+import {
   ELECTION_MARGIN_CAP,
   election2024Intensity,
   ENFORCEMENT_TIER_LABELS,
@@ -318,10 +325,7 @@ function strokeFor(selected: boolean, hovered: boolean): string {
 }
 
 /** The map tabs: the state metrics, plus views that only exist at county level */
-type MapView = MapMetric | "election2024County" | "religion" | "costCounty" | "visas"
-
-/** Which level a tab with both a county and a state map shows */
-type MapLevel = "county" | "state"
+type MapView = NationalMapView
 
 /**
  * `countyMap` replaces the state map while Demographics is selected (the county-level
@@ -332,16 +336,30 @@ type MapLevel = "county" | "state"
 export function UsMap({
   countyMap,
   electionCounties,
+  viewQuery,
+  levelQuery,
 }: {
   countyMap: ReactNode
   /** County labels and state abbreviations for the county-level 2024 election and religion maps */
   electionCounties: { counties: UsCountyRow[]; states: Record<string, string> }
+  /** `view` query, for example `fishback`. Omitted means Work visas. */
+  viewQuery?: string
+  /** `level` query. `state` shows the state map for Cost of living and 2024 election. */
+  levelQuery?: string
 }) {
   const [features, setFeatures] = useState<StateFeature[]>([])
-  const [view, setView] = useState<MapView>("visas")
-  // Which level the 2024 election tab shows; remembered when switching away and back
-  const [electionLevel, setElectionLevel] = useState<MapLevel>("county")
-  const [costLevel, setCostLevel] = useState<MapLevel>("county")
+  const level = mapLevel(levelQuery)
+  const view = nationalMapView(viewQuery, levelQuery)
+  // Which level the 2024 election and cost tabs show; remembered when switching away and back
+  const [electionLevel, setElectionLevel] = useState<MapLevel>(
+    view === "election2024" ? "state" : "county"
+  )
+  const [costLevel, setCostLevel] = useState<MapLevel>(view === "costOfLiving" ? "state" : "county")
+
+  useEffect(() => {
+    if (view === "election2024" || view === "election2024County") setElectionLevel(level)
+    if (view === "costOfLiving" || view === "costCounty") setCostLevel(level)
+  }, [view, level])
   // County-only views hide the state map, so any state metric will do behind them
   const metric: MapMetric =
     view === "election2024County" || view === "religion" || view === "costCounty" || view === "visas"
@@ -470,25 +488,26 @@ export function UsMap({
   }
 
   // Sits beside the legend on both maps of a tab that has a county and a state level
-  function levelToggle(
-    label: string,
-    current: MapLevel,
-    onChange: (level: MapLevel) => void
-  ) {
+  function levelToggle(label: string, current: MapLevel, county: MapView, state: MapView) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">Show by</span>
         <div className="inline-flex gap-1" role="group" aria-label={label}>
-          {(["county", "state"] as const).map((level) => (
+          {(
+            [
+              ["county", county],
+              ["state", state],
+            ] as const
+          ).map(([name, next]) => (
             <Button
-              key={level}
-              type="button"
+              key={name}
+              asChild
               size="xs"
-              variant={current === level ? "default" : "secondary"}
-              aria-pressed={current === level}
-              onClick={() => onChange(level)}
+              variant={current === name ? "default" : "secondary"}
             >
-              {level === "county" ? "County" : "State"}
+              <Link href={nationalMapHref(next)} scroll={false} aria-pressed={current === name}>
+                {name === "county" ? "County" : "State"}
+              </Link>
             </Button>
           ))}
         </div>
@@ -496,91 +515,55 @@ export function UsMap({
     )
   }
 
-  const electionLevelToggle = levelToggle("2024 election level", electionLevel, (level) => {
-    setElectionLevel(level)
-    setView(level === "county" ? "election2024County" : "election2024")
-  })
+  const electionLevelToggle = levelToggle(
+    "2024 election level",
+    view === "election2024" ? "state" : "county",
+    "election2024County",
+    "election2024"
+  )
 
-  const costLevelToggle = levelToggle("Cost of living level", costLevel, (level) => {
-    setCostLevel(level)
-    setView(level === "county" ? "costCounty" : "costOfLiving")
-  })
+  const costLevelToggle = levelToggle(
+    "Cost of living level",
+    view === "costOfLiving" ? "state" : "county",
+    "costCounty",
+    "costOfLiving"
+  )
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "visas" ? "default" : "secondary"}
-          onClick={() => setView("visas")}
-        >
-          Work visas
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={costActive ? "default" : "secondary"}
-          onClick={() => setView(costLevel === "county" ? "costCounty" : "costOfLiving")}
-        >
-          Cost of living
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "native" ? "default" : "secondary"}
-          onClick={() => setView("native")}
-        >
-          Demographics
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={electionActive ? "default" : "secondary"}
-          onClick={() => setView(electionLevel === "county" ? "election2024County" : "election2024")}
-        >
-          2024 election
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "religion" ? "default" : "secondary"}
-          onClick={() => setView("religion")}
-        >
-          Religion
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "antiImmig" ? "default" : "secondary"}
-          onClick={() => setView("antiImmig")}
-        >
-          Immigration sentiment
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "enforcement" ? "default" : "secondary"}
-          onClick={() => setView("enforcement")}
-        >
-          Enforcement laws &amp; ICE
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "thirtyMarriedHomeowner" ? "default" : "secondary"}
-          onClick={() => setView("thirtyMarriedHomeowner")}
-        >
-          Fishback benchmark
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "wealthShareUnder30" ? "default" : "secondary"}
-          onClick={() => setView("wealthShareUnder30")}
-        >
-          Wealth share (30 &amp; under)
-        </Button>
+        {(
+          [
+            ["visas", "Work visas"],
+            [costLevel === "county" ? "costCounty" : "costOfLiving", "Cost of living"],
+            ["native", "Demographics"],
+            [
+              electionLevel === "county" ? "election2024County" : "election2024",
+              "2024 election",
+            ],
+            ["religion", "Religion"],
+            ["antiImmig", "Immigration sentiment"],
+            ["enforcement", "Enforcement laws & ICE"],
+            ["thirtyMarriedHomeowner", "Fishback benchmark"],
+            ["wealthShareUnder30", "Wealth share (30 & under)"],
+          ] as const
+        ).map(([next, label]) => {
+          const active =
+            next === "visas"
+              ? view === "visas"
+              : next === "costCounty" || next === "costOfLiving"
+                ? costActive
+                : next === "election2024County" || next === "election2024"
+                  ? electionActive
+                  : view === next
+          return (
+            <Button key={label} asChild size="sm" variant={active ? "default" : "secondary"}>
+              <Link href={nationalMapHref(next)} scroll={false} aria-pressed={active}>
+                {label}
+              </Link>
+            </Button>
+          )
+        })}
       </div>
 
       <div className={showCounties ? undefined : "hidden"}>

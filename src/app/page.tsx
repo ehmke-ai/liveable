@@ -25,6 +25,7 @@ import {
   getCountryBySlug,
   getCountryRankings,
 } from "@/lib/demographics"
+import { queryValue } from "@/lib/map-view"
 import { usCountyMapData } from "@/lib/state-data"
 import {
   election2024Margin,
@@ -146,7 +147,12 @@ function SectionHeader({
   )
 }
 
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string | string[]; level?: string | string[] }>
+}) {
+  const query = await searchParams
   const us = getCountryBySlug("united-states")
   if (!us) throw new Error("Missing United States data")
 
@@ -165,6 +171,8 @@ export default function HomePage() {
       <UsMap
         countyMap={<UsCountyMap {...countyMapData} years={COUNTY_HISTORY_YEARS} />}
         electionCounties={countyMapData}
+        viewQuery={queryValue(query.view)}
+        levelQuery={queryValue(query.level)}
       />
 
       <SectionHeader id="leaderboards" title="Leaderboards">

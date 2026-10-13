@@ -32,6 +32,7 @@ import {
   usCost,
 } from "@/lib/cost-of-living"
 import { COUNTY_HISTORY_YEARS } from "@/lib/county-history"
+import { queryValue } from "@/lib/map-view"
 import { COLORS, formatMedianAge, getCountryBySlug } from "@/lib/demographics"
 import {
   POPULATION_GROUP_LABELS,
@@ -70,10 +71,13 @@ export async function generateMetadata({
 
 export default async function StatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ state: string }>
+  searchParams: Promise<{ view?: string | string[] }>
 }) {
   const { state: slug } = await params
+  const query = await searchParams
   const state = getStateBySlug(slug)
   if (!state) notFound()
 
@@ -188,6 +192,7 @@ export default async function StatePage({
                 state={state}
                 counties={counties}
                 years={COUNTY_HISTORY_YEARS}
+                viewQuery={queryValue(query.view)}
               />
             </CardContent>
           </Card>

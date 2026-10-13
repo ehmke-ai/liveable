@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { useMemo } from "react"
 
 import {
   Combobox,
@@ -18,6 +18,7 @@ import { UsCountyElectionMap } from "@/components/us-county-election-map"
 import { UsCountyMap, type UsCountyRow } from "@/components/us-county-map"
 import { UsCountyReligionMap } from "@/components/us-county-religion-map"
 import { UsCountyVisaMap } from "@/components/us-county-visa-map"
+import { stateMapHref, stateMapView } from "@/lib/map-view"
 import {
   countyLabel,
   countySlug,
@@ -59,14 +60,18 @@ export function StateCountyMap({
   state,
   counties: data,
   years,
+  viewQuery,
 }: {
   state: StateDemographics
   counties: CountyDemographics[]
   /** Demographics slider years, oldest first; each must be a key of county-history.json */
   years: number[]
+  /** `view` query. Omitted means Work visas. */
+  viewQuery?: string
 }) {
   const router = useRouter()
-  const [view, setView] = useState<View>("visas")
+  const pathname = usePathname()
+  const view = stateMapView(viewQuery)
 
   const byFips = useMemo(() => Object.fromEntries(data.map((c) => [c.fips, c])), [data])
   const sortedCounties = useMemo(
@@ -98,15 +103,10 @@ export function StateCountyMap({
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         {VIEWS.map(({ key, label }) => (
-          <Button
-            key={key}
-            type="button"
-            size="sm"
-            variant={view === key ? "default" : "secondary"}
-            aria-pressed={view === key}
-            onClick={() => setView(key)}
-          >
-            {label}
+          <Button key={key} asChild size="sm" variant={view === key ? "default" : "secondary"}>
+            <Link href={stateMapHref(pathname, key)} scroll={false} aria-pressed={view === key}>
+              {label}
+            </Link>
           </Button>
         ))}
       </div>
