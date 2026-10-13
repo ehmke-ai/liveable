@@ -20,6 +20,14 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +36,7 @@ import {
 } from "@/components/ui/select"
 import countyLabels from "@/data/county-labels.json"
 import countyFips from "@/data/county-fips.json"
+import schools from "@/data/schools.json"
 import stateGenerationPop from "@/data/state-generation-pop.json"
 import {
   COUNTY_HISTORY_YEARS,
@@ -39,13 +48,17 @@ import { stateNav, stateNavBySlug } from "@/lib/states"
 import {
   DEMOGRAPHIC_GROUPS,
   FED_WEALTH,
+  FIELD_CITIZENSHIP_YEAR,
   fedWealth,
+  fieldLabor,
   GENERATIONS,
   generation,
+  MIN_FIELD_SAMPLE,
   VISA_PROGRAMS,
   WEALTH_QUARTER,
   WORK_FIELDS,
   workField,
+  type FieldLabor,
   type GenerationId,
   type VisaProgramId,
   type WorkFieldId,
@@ -53,13 +66,32 @@ import {
 
 type FieldFile = Record<string, Partial<Record<WorkFieldId, Partial<Record<VisaProgramId, number>>>>>
 type PopFile = Record<string, Record<GenerationId, number>>
+type SchoolProgramId = "h1b" | "specialty" | "perm"
+type SchoolVisa = Partial<Record<SchoolProgramId, number>> & {
+  fields?: Partial<Record<WorkFieldId, Partial<Record<SchoolProgramId, number>>>>
+  jobs?: [string, WorkFieldId, number][]
+}
+type SchoolFile = Record<string, SchoolVisa>
+type SchoolOption = { value: string; label: string }
 
 const labels = countyLabels as Record<string, Record<string, string>>
 const fipsByPlace = countyFips as Record<string, Record<string, string>>
 const population = stateGenerationPop as PopFile
+const schoolRows = schools as { id: string; name: string; city: string; state: string }[]
+const schoolOptions: SchoolOption[] = schoolRows.map((row) => ({
+  value: row.id,
+  label: [row.name, row.city, row.state].filter(Boolean).join(", "),
+}))
+const schoolById = new Map(schoolOptions.map((row) => [row.value, row]))
 
 const FIELD_URL = "/data/county-visa-fields.json"
 const HISTORY_URL = "/data/county-history.json"
+const SCHOOL_URL = "/data/school-visas.json"
+
+const SCHOOL_PROGRAMS = VISA_PROGRAMS.filter(
+  (program): program is (typeof VISA_PROGRAMS)[number] & { id: SchoolProgramId } =>
+    program.id === "h1b" || program.id === "specialty" || program.id === "perm"
+)
 
 function countiesIn(stateSlug: string): { slug: string; label: string }[] {
   const rows = labels[stateSlug]
@@ -90,6 +122,7 @@ export function WhereYouStand() {
   const groupId = searchParams.get("group")
   const fieldId = searchParams.get("field")
   const generationId = searchParams.get("generation")
+  const schoolId = searchParams.get("school")
 
   const state = stateSlug ? stateNavBySlug[stateSlug] : undefined
   const counties = state ? countiesIn(state.slug) : []
@@ -97,6 +130,7 @@ export function WhereYouStand() {
   const group = DEMOGRAPHIC_GROUPS.find((row) => row.id === groupId)
   const field = workField(fieldId)
   const cohort = generation(generationId)
+  const school = schoolId ? schoolById.get(schoolId) : undefined
   const fips = state && county ? fipsByPlace[state.slug]?.[county.slug] : undefined
 
   function write(next: Record<string, string | null>) {
@@ -184,6 +218,32 @@ export function WhereYouStand() {
           </Select>
         </Field>
 
+        <Field label="College or university" htmlFor="you-school" optional>
+          <Combobox
+            items={schoolOptions}
+            value={school?.value ?? null}
+            limit={50}
+            onValueChange={(value) => write({ school: value })}
+          >
+            <ComboboxInput
+              id="you-school"
+              placeholder="Search a college or university"
+              showClear={Boolean(school)}
+              className="w-full"
+            />
+            <ComboboxContent>
+              <ComboboxEmpty>No college or university found.</ComboboxEmpty>
+              <ComboboxList>
+                {(option: SchoolOption) => (
+                  <ComboboxItem key={option.value} value={option.value}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </Field>
+
         <Field label="Demographic" htmlFor="you-group" optional>
           <Select value={group?.id} onValueChange={(value) => write({ group: value })}>
             <SelectTrigger id="you-group" className="w-full">
@@ -213,6 +273,8 @@ export function WhereYouStand() {
           fieldId={field.id}
           fieldLabel={field.label}
           generationId={cohort.id}
+          schoolId={school?.value}
+          schoolLabel={school?.label}
         />
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -257,6 +319,8 @@ function Results(props: {
   fieldId: WorkFieldId
   fieldLabel: string
   generationId: GenerationId
+  schoolId?: string
+  schoolLabel?: string
 }) {
   const fields = useJson<FieldFile>(FIELD_URL)
   const history = useJson<CountyHistory>(HISTORY_URL)
@@ -269,7 +333,12 @@ function Results(props: {
         <p className="text-sm text-muted-foreground">The county figures did not load.</p>
       )}
       {loading && <p className="text-sm text-muted-foreground">Loading county figures…</p>}
+      {props.schoolId && props.schoolLabel && (
+        <SchoolCard schoolId={props.schoolId} schoolLabel={props.schoolLabel} fieldId={props.fieldId} fieldLabel={props.fieldLabel} />
+      )}
+      <FieldLaborCard {...props} />
       {fields.data && <VisaCard {...props} fields={fields.data} />}
+      <WealthCard {...props} />
       {history.data && props.groupId && props.groupLabel && (
         <ShareChart
           countyLabel={props.countyLabel}
@@ -279,8 +348,83 @@ function Results(props: {
           history={history.data}
         />
       )}
-      <WealthCard {...props} />
     </div>
+  )
+}
+
+function laborTotal(cell: FieldLabor): number {
+  return cell.citizen + cell.noncitizen
+}
+
+function laborPct(cell: FieldLabor, key: "citizen" | "naturalized" | "noncitizen"): number {
+  return (cell[key] / laborTotal(cell)) * 100
+}
+
+function FieldLaborCard({
+  stateName,
+  abbr,
+  fieldId,
+  fieldLabel,
+}: {
+  stateName: string
+  abbr: string
+  fieldId: WorkFieldId
+  fieldLabel: string
+}) {
+  const stateCell = fieldLabor(abbr, fieldId)
+  const usCell = fieldLabor("US", fieldId)
+  if (!usCell || laborTotal(usCell) <= 0) return null
+  const stateOk = Boolean(stateCell && stateCell.n >= MIN_FIELD_SAMPLE && laborTotal(stateCell) > 0)
+  const focus = stateOk && stateCell ? stateCell : usCell
+  const noncitizen = laborPct(focus, "noncitizen")
+  const citizen = laborPct(focus, "citizen")
+  const naturalized = laborPct(focus, "naturalized")
+  const field = fieldLabel.toLowerCase()
+  const place = stateOk ? stateName : "the United States"
+  const rows = [
+    { id: "citizen", label: "U.S. citizens", share: citizen, highlight: false },
+    { id: "noncitizen", label: "Non-citizens", share: noncitizen, highlight: true },
+  ]
+
+  return (
+    <Card className="border-border bg-card shadow-none">
+      <CardHeader>
+        <CardTitle className="text-4xl font-semibold tabular-nums">{formatPct(noncitizen)}</CardTitle>
+        <CardDescription>
+          {stateOk
+            ? `Not U.S. citizens among people working in ${field} in ${stateName}, ${FIELD_CITIZENSHIP_YEAR}. Nationwide, ${formatPct(laborPct(usCell, "noncitizen"))}.`
+            : `${stateName}’s ${FIELD_CITIZENSHIP_YEAR} sample of people working in ${field} is too small, so this is the U.S. share.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="grid grid-cols-[8.5rem_minmax(0,1fr)_3.25rem] items-center gap-3 text-sm"
+          >
+            <span className={row.highlight ? "font-semibold" : "text-muted-foreground"}>{row.label}</span>
+            <span className="block h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
+              <span
+                className="block h-full rounded-full"
+                style={{
+                  width: `${row.share}%`,
+                  background: row.highlight ? "var(--chart-1)" : "var(--muted-foreground)",
+                  opacity: row.highlight ? 1 : 0.45,
+                }}
+              />
+            </span>
+            <span className="text-right tabular-nums">{formatPct(row.share)}</span>
+          </div>
+        ))}
+        <p className="text-sm text-muted-foreground">
+          Citizens include naturalized citizens, {formatPct(naturalized)} of workers in this field in{" "}
+          {place}. Non-citizens include green-card holders, temporary workers such as H-1B, refugees,
+          and people without status who answered the survey. The American Community Survey records
+          citizenship and has no visa class. The county figure below is certified job slots in this
+          occupation, for the county rather than the state.
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -358,6 +502,117 @@ function VisaCard({
           <Link href="/work-visas" className="text-foreground underline-offset-2 hover:underline">
             Work visas
           </Link>
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function schoolProgramTotal(row: Partial<Record<SchoolProgramId, number>> | undefined): number {
+  return SCHOOL_PROGRAMS.reduce((sum, program) => sum + (row?.[program.id] ?? 0), 0)
+}
+
+function SchoolCard({
+  schoolId,
+  schoolLabel,
+  fieldId,
+  fieldLabel,
+}: {
+  schoolId: string
+  schoolLabel: string
+  fieldId: WorkFieldId
+  fieldLabel: string
+}) {
+  const file = useJson<SchoolFile>(SCHOOL_URL)
+  if (file.error) {
+    return <p className="text-sm text-muted-foreground">The school figures did not load.</p>
+  }
+  if (!file.data) {
+    return <p className="text-sm text-muted-foreground">Loading school figures…</p>
+  }
+  const school = file.data[schoolId]
+  if (!school) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No FY 2025 certified filings for {schoolLabel}.
+      </p>
+    )
+  }
+  const fieldPrograms = school.fields?.[fieldId]
+  const fieldCount = schoolProgramTotal(fieldPrograms)
+  const schoolTotal = schoolProgramTotal(school)
+  const share = schoolTotal > 0 ? (fieldCount / schoolTotal) * 100 : null
+  const programRows = SCHOOL_PROGRAMS.flatMap((program) => {
+    const value = fieldPrograms?.[program.id] ?? 0
+    return value > 0 ? [{ ...program, value }] : []
+  })
+  const jobs = school.jobs ?? []
+  const matching = jobs.filter((job) => job[1] === fieldId)
+  const others = jobs.filter((job) => job[1] !== fieldId)
+  const field = fieldLabel.toLowerCase()
+
+  return (
+    <Card className="border-border bg-card shadow-none">
+      <CardHeader>
+        <CardTitle className="text-4xl font-semibold tabular-nums" style={{ color: "var(--chart-1)" }}>
+          {formatCount(fieldCount)}
+        </CardTitle>
+        <CardDescription>
+          {fieldCount === 0
+            ? `No certified foreign-worker positions in ${field} at ${schoolLabel}, FY 2025.`
+            : `Certified foreign-worker positions in ${field} at ${schoolLabel}, FY 2025.`}
+          {share != null && fieldCount > 0 && (
+            <>
+              {" "}
+              That is {formatPct(share)} of this school’s certified positions ({formatCount(schoolTotal)}).
+            </>
+          )}
+          {share != null && fieldCount === 0 && schoolTotal > 0 && (
+            <> The school certified {formatCount(schoolTotal)} positions in other fields.</>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">
+        {programRows.length > 0 && (
+          <ul className="mb-4 flex flex-col gap-1.5 text-foreground">
+            {programRows.map((row) => (
+              <li key={row.id} className="flex items-baseline justify-between gap-4 text-foreground">
+                <span>{row.label}</span>
+                <span className="tabular-nums">{formatCount(row.value)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {jobs.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-2 font-medium text-foreground">Positions</p>
+            <ul className="flex max-h-96 flex-col gap-1.5 overflow-y-auto">
+              {[...matching, ...others].map((job) => {
+                const match = job[1] === fieldId
+                return (
+                  <li
+                    key={`${job[1]}-${job[0]}`}
+                    className={
+                      match
+                        ? "flex items-baseline justify-between gap-4 font-semibold"
+                        : "flex items-baseline justify-between gap-4 text-muted-foreground"
+                    }
+                  >
+                    <span style={match ? { color: "var(--chart-1)" } : undefined}>{job[0]}</span>
+                    <span className="tabular-nums" style={match ? { color: "var(--chart-1)" } : undefined}>
+                      {formatCount(job[2])}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+        <p>
+          Certified job slots for this employer, not people hired. The same worker can be counted
+          twice when the school certifies both a temporary visa and a green card in the same year.
+          J-1 scholars, student work permits, TN, and O-1 are not in these files. University
+          hospitals that file under a hospital industry code are not included.
         </p>
       </CardContent>
     </Card>

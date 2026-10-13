@@ -1,3 +1,5 @@
+import fieldCitizenship from "@/data/field-citizenship.json"
+
 import {
   POPULATION_GROUP_LABELS,
   type PopulationGroup,
@@ -29,6 +31,30 @@ export const WORK_FIELDS = [
 ] as const
 
 export type WorkFieldId = (typeof WORK_FIELDS)[number]["id"]
+
+/** Hide a state share below this many employed respondents in the field. */
+export const MIN_FIELD_SAMPLE = 80
+
+export type FieldLabor = {
+  citizen: number
+  naturalized: number
+  noncitizen: number
+  n: number
+}
+
+type FieldLaborFile = {
+  year: number
+} & Record<string, Record<string, FieldLabor> | number>
+
+const laborFile = fieldCitizenship as FieldLaborFile
+
+export const FIELD_CITIZENSHIP_YEAR = laborFile.year
+
+export function fieldLabor(abbr: string, fieldId: WorkFieldId): FieldLabor | undefined {
+  const row = laborFile[abbr]
+  if (!row || typeof row !== "object") return undefined
+  return row[fieldId]
+}
 
 /** Programs in county-visa-fields.json. Order is the order of the breakdown. */
 export const VISA_PROGRAMS = [
@@ -86,6 +112,17 @@ export function fedWealth(id: FedWealthId): (typeof FED_WEALTH)[number] {
 }
 
 export const whereYouStandSources = [
+  {
+    label: `Workers by citizenship and field, ${FIELD_CITIZENSHIP_YEAR}`,
+    detail: `American Community Survey ${FIELD_CITIZENSHIP_YEAR} 1-year Public Use Microdata Sample. Civilian employed people age 16 and over, weighted by person weight, grouped by the occupation’s SOC major group. Citizens are people born in the United States, born in a U.S. territory, born abroad of American parents, or naturalized. The naturalized count is the naturalized part of the citizen count. Non-citizens include green-card holders, temporary workers, refugees, and people without status who answered the survey. The survey records citizenship and has no visa class. A state share is hidden when fewer than ${MIN_FIELD_SAMPLE} respondents in that state and field are employed. These are workers, not jobs, and they are separate from the county filing counts. Puerto Rico is not included.`,
+    url: "https://www.census.gov/programs-surveys/acs/microdata/documentation/2024.html",
+  },
+  {
+    label: "College and university job visas, FY 2025",
+    detail:
+      "Department of Labor, OFLC disclosure files, FY 2025. Employers whose NAICS code starts with 6112 (junior colleges) or 6113 (colleges, universities, and professional schools). H-1B, H-1B1, and E-3 positions come from the LCA files, Q1–Q4, latest status Certified, counted with the same case rules as the county file. Green-card labor certifications are certified PERM applications, one worker each. Each tax ID is a separate employer, so campuses that file apart stay apart. A certified slot is not a person admitted. University hospitals that file under a hospital industry code are not included. J-1 scholars, Optional Practical Training, TN, and O-1 are not in these files.",
+    url: "https://www.dol.gov/agencies/eta/foreign-labor/performance",
+  },
   {
     label: "Job visas by county and field, FY 2025",
     detail:
