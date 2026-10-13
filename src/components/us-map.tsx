@@ -26,6 +26,7 @@ import {
   divergingShade,
   divergingStops,
   downloadMapPng,
+  LIGHT_BACKGROUND,
   PRO_IMMIG_COLOR,
   shade,
   SHADE_RANGE,
@@ -142,6 +143,8 @@ type MetricConfig = {
   defaultColor: string
   /** When set, the scale diverges: this default low-end color, neutral mid-range, the chosen color at the high end */
   defaultLowColor?: string
+  /** Color the pale end mixes toward. Defaults to the muted surface. */
+  shadeBase?: string
   /** Color-picker labels for the low and high ends of a diverging scale */
   colorLabels?: [string, string]
   /** Position in the color scale, 0 (palest) to 1 (deepest); null when the state has no figure */
@@ -208,37 +211,43 @@ const METRICS: Record<MapMetric, MetricConfig> = {
   thirtyMarriedHomeowner: {
     title: "Fishback benchmark by state",
     subtitle:
-      "Share of 30-year-olds who are married with spouse present and own their home; the scale runs from the lowest states to the highest.",
+      "Share of 30-year-olds who are married with spouse present and own their home; the scale runs from the lowest states to the highest. DC is excluded.",
     name: "30, married & homeowner",
     low: `${minStateThirtyMarriedHomeowner}%`,
     high: `${maxStateThirtyMarriedHomeowner}%`,
-    source: "Source: U.S. Census Bureau, ACS 2024 1-year estimates",
+    source: "Source: U.S. Census Bureau, ACS 2024 1-year estimates (DC excluded)",
     defaultColor: "#004278",
     defaultLowColor: "#E76224",
+    shadeBase: LIGHT_BACKGROUND,
     colorLabels: ["Low color", "High color"],
     intensity: (d) =>
-      rangeIntensity(
-        d.thirtyMarriedHomeowner,
-        minStateThirtyMarriedHomeowner,
-        maxStateThirtyMarriedHomeowner
-      ),
-    value: (d) => `${d.thirtyMarriedHomeowner}%`,
+      d.abbr === "DC"
+        ? null
+        : rangeIntensity(
+            d.thirtyMarriedHomeowner,
+            minStateThirtyMarriedHomeowner,
+            maxStateThirtyMarriedHomeowner
+          ),
+    value: (d) => (d.abbr === "DC" ? "excluded" : `${d.thirtyMarriedHomeowner}%`),
   },
   wealthShareUnder30: {
     title: "Wealth share held by residents 30 and under, by state",
     subtitle:
-      "Estimated share of total household net wealth; the scale runs from the lowest states to the highest.",
+      "Estimated share of total household net wealth; the scale runs from the lowest states to the highest. DC is excluded.",
     name: "Wealth share, 30 & under",
     low: `${minStateWealthShareUnder30}%`,
     high: `${maxStateWealthShareUnder30}%`,
     source:
-      "Sources: Fishback benchmark (ACS 2024); Federal Reserve Distributional Financial Accounts",
+      "Sources: Fishback benchmark (ACS 2024); Federal Reserve Distributional Financial Accounts (DC excluded)",
     defaultColor: "#004278",
     defaultLowColor: "#E76224",
+    shadeBase: LIGHT_BACKGROUND,
     colorLabels: ["Low color", "High color"],
     intensity: (d) =>
-      rangeIntensity(d.wealthShareUnder30, minStateWealthShareUnder30, maxStateWealthShareUnder30),
-    value: (d) => `${d.wealthShareUnder30}%`,
+      d.abbr === "DC"
+        ? null
+        : rangeIntensity(d.wealthShareUnder30, minStateWealthShareUnder30, maxStateWealthShareUnder30),
+    value: (d) => (d.abbr === "DC" ? "excluded" : `${d.wealthShareUnder30}%`),
   },
   native: {
     title: "Native / European share by state",
@@ -289,7 +298,7 @@ function fillFor(
   const t = data ? METRICS[metric].intensity(data) : null
   if (t == null) return hovered ? NO_DATA_HOVER_FILL : NO_DATA_FILL
   const boost = selected ? 15 : hovered ? 8 : 0
-  if (lowColor) return divergingShade(lowColor, color, t, boost)
+  if (lowColor) return divergingShade(lowColor, color, t, boost, METRICS[metric].shadeBase)
   const pct = Math.round(SHADE_RANGE[0] + t * (SHADE_RANGE[1] - SHADE_RANGE[0]))
   return shade(color, Math.min(100, pct + boost))
 }
@@ -431,12 +440,17 @@ export function UsMap({
         legend: [
           {
             name: config.name,
-            stops: lowColor ? divergingStops(lowColor, color) : shadeStops(color),
+            stops: lowColor
+              ? divergingStops(lowColor, color, config.shadeBase)
+              : shadeStops(color),
             low: config.low,
             high: config.high,
           },
         ],
-        noData: metric === "antiImmig",
+        noData:
+          metric === "antiImmig" ||
+          metric === "thirtyMarriedHomeowner" ||
+          metric === "wealthShareUnder30",
         source: config.source,
         mapWidth: WIDTH,
         mapHeight: HEIGHT,
@@ -763,7 +777,7 @@ export function UsMap({
               className="h-2.5 border border-border"
               style={{
                 background: lowColor
-                  ? divergingGradient(lowColor, color)
+                  ? divergingGradient(lowColor, color, config.shadeBase)
                   : shadeGradient(color),
               }}
             />
@@ -772,7 +786,11 @@ export function UsMap({
               <span className="text-right">{config.high}</span>
             </div>
           </div>
-          {metric === "antiImmig" && <LegendSwatch color={NO_DATA_FILL} label="No data" />}
+          {(metric === "antiImmig" ||
+            metric === "thirtyMarriedHomeowner" ||
+            metric === "wealthShareUnder30") && (
+            <LegendSwatch color={NO_DATA_FILL} label={metric === "antiImmig" ? "No data" : "DC excluded"} />
+          )}
           {metric === "election2024" && electionLevelToggle}
           {metric === "costOfLiving" && costLevelToggle}
           <span className="ml-auto text-muted-foreground">{config.source}</span>
@@ -834,12 +852,12 @@ export function UsMap({
                 <Stat label="Native / European" value={`${detail.native}%`} color={COLORS.native} />
                 <Stat
                   label="30, married & homeowner"
-                  value={`${detail.thirtyMarriedHomeowner}%`}
+                  value={detail.abbr === "DC" ? "—" : `${detail.thirtyMarriedHomeowner}%`}
                   color={COLORS.thirtyMarriedHomeowner}
                 />
                 <Stat
                   label="Wealth share, 30 & under"
-                  value={`${detail.wealthShareUnder30}%`}
+                  value={detail.abbr === "DC" ? "—" : `${detail.wealthShareUnder30}%`}
                   color={COLORS.wealthShareUnder30}
                 />
                 <Stat
@@ -910,9 +928,10 @@ export function UsMap({
         county takes the color of whichever chosen side is largest, deeper the wider its lead
         over the next side. 30, married &amp; homeowner: among 30-year-olds, share who are married with
         spouse present and own their home, estimated from ACS 2024 1-year cross-tabulations by
-        age, marital status, and tenure. Wealth share (30 &amp; under): estimated share of total
+        age, marital status, and tenure. DC is excluded from this map and its scale. Wealth share (30 &amp; under): estimated share of total
         household net wealth held by residents aged 30 and under, derived from the Fishback
         benchmark and Federal Reserve Distributional Financial Accounts under-35 wealth shares.
+        DC is excluded from this map and its scale.
         2024 election (by state): statewide popular-vote shares for Donald Trump and Kamala
         Harris in the 2024 presidential general election (certified results; third-party votes
         make up the remainder). Margins of {ELECTION_MARGIN_CAP} points or more take the deepest

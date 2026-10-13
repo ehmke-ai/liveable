@@ -339,17 +339,19 @@ export const minStateGdp = Math.min(...stateMapData.map((s) => s.gdp))
 export const maxStateGdp = Math.max(...stateMapData.map((s) => s.gdp))
 export const minStateEnforcementScore = Math.min(...stateMapData.map((s) => s.enforcementScore))
 export const maxStateEnforcementScore = Math.max(...stateMapData.map((s) => s.enforcementScore))
+/** DC is left off the Fishback and under-30 wealth scales on the root map. */
+const stateScaleWithoutDc = stateMapData.filter((s) => s.abbr !== "DC")
 export const minStateThirtyMarriedHomeowner = Math.min(
-  ...stateMapData.map((s) => s.thirtyMarriedHomeowner)
+  ...stateScaleWithoutDc.map((s) => s.thirtyMarriedHomeowner)
 )
 export const maxStateThirtyMarriedHomeowner = Math.max(
-  ...stateMapData.map((s) => s.thirtyMarriedHomeowner)
+  ...stateScaleWithoutDc.map((s) => s.thirtyMarriedHomeowner)
 )
 export const minStateWealthShareUnder30 = Math.min(
-  ...stateMapData.map((s) => s.wealthShareUnder30)
+  ...stateScaleWithoutDc.map((s) => s.wealthShareUnder30)
 )
 export const maxStateWealthShareUnder30 = Math.max(
-  ...stateMapData.map((s) => s.wealthShareUnder30)
+  ...stateScaleWithoutDc.map((s) => s.wealthShareUnder30)
 )
 
 export const minStateRpp = Math.min(...stateMapData.map((s) => s.cost.rpp))

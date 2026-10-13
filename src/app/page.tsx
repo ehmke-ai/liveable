@@ -162,11 +162,6 @@ export default function HomePage() {
         <PlaceSearch className="mt-5 max-w-md" />
       </PageHeader>
 
-      <SectionHeader id="map" title="The map">
-        Switch metrics, hover a state for a preview, and click it for its full profile and county
-        map. The county views show ethnicity over time, the 2024 result, religion, housing
-        costs, and certified H-1B, H-2A, and H-2B jobs.
-      </SectionHeader>
       <UsMap
         countyMap={<UsCountyMap {...countyMapData} years={COUNTY_HISTORY_YEARS} />}
         electionCounties={countyMapData}

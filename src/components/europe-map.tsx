@@ -21,6 +21,7 @@ import {
   divergingShade,
   divergingStops,
   downloadMapPng,
+  LIGHT_BACKGROUND,
   PRO_IMMIG_COLOR,
   shade,
   SHADE_RANGE,
@@ -303,6 +304,8 @@ type MetricConfig = {
   defaultColor: string
   /** When set, the scale diverges: this default low-end color, neutral mid-range, the chosen color at the high end */
   defaultLowColor?: string
+  /** Color the pale end mixes toward. Defaults to the muted surface. */
+  shadeBase?: string
   /** Color-picker labels for the low and high ends of a diverging scale */
   colorLabels?: [string, string]
   /** Position in the color scale, 0 (palest) to 1 (deepest) */
@@ -368,6 +371,7 @@ const METRICS: Record<MapMetric, MetricConfig> = {
     source: "Source: Eurostat EU-SILC household composition and tenure by age",
     defaultColor: "#004278",
     defaultLowColor: "#E76224",
+    shadeBase: LIGHT_BACKGROUND,
     colorLabels: ["Low color", "High color"],
     intensity: (d) =>
       rangeIntensity(
@@ -389,6 +393,7 @@ const METRICS: Record<MapMetric, MetricConfig> = {
     source: "Source: ECB Household Finance and Consumption Survey (interpolated from under-35)",
     defaultColor: "#004278",
     defaultLowColor: "#E76224",
+    shadeBase: LIGHT_BACKGROUND,
     colorLabels: ["Low color", "High color"],
     intensity: (d) =>
       rangeIntensity(d.wealthShareUnder30, minMapWealthShareUnder30, maxMapWealthShareUnder30),
@@ -428,7 +433,7 @@ function fillFor(
   if (!data) return hovered ? NO_DATA_HOVER_FILL : NO_DATA_FILL
   const t = METRICS[metric].intensity(data)
   const boost = selected ? 15 : hovered ? 8 : 0
-  if (lowColor) return divergingShade(lowColor, color, t, boost)
+  if (lowColor) return divergingShade(lowColor, color, t, boost, METRICS[metric].shadeBase)
   const pct = Math.round(SHADE_RANGE[0] + t * (SHADE_RANGE[1] - SHADE_RANGE[0]))
   return shade(color, Math.min(100, pct + boost))
 }
@@ -548,7 +553,9 @@ export function EuropeMap() {
         legend: [
           {
             name: config.name,
-            stops: lowColor ? divergingStops(lowColor, color) : shadeStops(color),
+            stops: lowColor
+              ? divergingStops(lowColor, color, config.shadeBase)
+              : shadeStops(color),
             low: config.low,
             high: config.high,
           },
@@ -752,7 +759,7 @@ export function EuropeMap() {
               className="h-2.5 border border-border"
               style={{
                 background: lowColor
-                  ? divergingGradient(lowColor, color)
+                  ? divergingGradient(lowColor, color, config.shadeBase)
                   : shadeGradient(color),
               }}
             />

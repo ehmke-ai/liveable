@@ -3,9 +3,15 @@
  * a fixed size so the image looks the same whatever the screen it was downloaded from.
  */
 
-/** A choropleth shade: `pct` percent of `color`, the rest the muted background */
-export function shade(color: string, pct: number) {
-  return `color-mix(in oklch, ${color} ${pct}%, var(--muted))`
+/**
+ * Light-mode page background (`--background` on `:root`). Choropleth scales mix toward
+ * this so the pale end stays light when dark mode turns `--muted` near black.
+ */
+export const LIGHT_BACKGROUND = "#ffffff"
+
+/** A choropleth shade: `pct` percent of `color`, the rest `base` (light background by default) */
+export function shade(color: string, pct: number, base = LIGHT_BACKGROUND) {
+  return `color-mix(in oklch, ${color} ${pct}%, ${base})`
 }
 
 /** The palest to deepest shades a map uses, for legend bars */
@@ -27,20 +33,26 @@ export const ANTI_IMMIG_COLOR = "#d32f2f"
 
 /**
  * A two-sided shade for `t` in 0..1: `lowColor` deepest at 0, neutral at 0.5, `highColor`
- * deepest at 1.
+ * deepest at 1. Each side fades toward `base` (light background by default).
  */
-export function divergingShade(lowColor: string, highColor: string, t: number, boost = 0) {
+export function divergingShade(
+  lowColor: string,
+  highColor: string,
+  t: number,
+  boost = 0,
+  base = LIGHT_BACKGROUND
+) {
   const side = t < 0.5 ? lowColor : highColor
   const pct = Math.round(Math.abs(t - 0.5) * 2 * 100)
-  return shade(side, Math.min(100, pct + boost))
+  return shade(side, Math.min(100, pct + boost), base)
 }
 
-export function divergingStops(lowColor: string, highColor: string) {
-  return [0, 0.25, 0.5, 0.75, 1].map((t) => divergingShade(lowColor, highColor, t))
+export function divergingStops(lowColor: string, highColor: string, base = LIGHT_BACKGROUND) {
+  return [0, 0.25, 0.5, 0.75, 1].map((t) => divergingShade(lowColor, highColor, t, 0, base))
 }
 
-export function divergingGradient(lowColor: string, highColor: string) {
-  return `linear-gradient(in oklch to right, ${divergingStops(lowColor, highColor).join(", ")})`
+export function divergingGradient(lowColor: string, highColor: string, base = LIGHT_BACKGROUND) {
+  return `linear-gradient(in oklch to right, ${divergingStops(lowColor, highColor, base).join(", ")})`
 }
 
 export type ExportLegendEntry = {

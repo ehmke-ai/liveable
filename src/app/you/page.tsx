@@ -18,7 +18,6 @@ export default function WhereYouStandPage() {
       <PageHeader
         eyebrow="United States"
         title="Where you stand"
-        description={`The counties where you will work, your field, and your generation. For the field, it shows the share of workers in that state who are not U.S. citizens, from the ${FIELD_CITIZENSHIP_YEAR} American Community Survey. The job count adds H-1B, H-1B1, E-3, green-card labor certifications, H-2A, and H-2B in that occupation across those counties, and lists each county. Remote, if you check it, adds the national share of workers and the national job count for that field next to those figures. A college or university, if you pick one, shows the H-1B, H-1B1, E-3, and green-card positions that school certified, with your field marked. Those are certified slots, not people. Wealth by generation is a national figure. The Fed does not publish it by state.`}
       />
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <WhereYouStand />
