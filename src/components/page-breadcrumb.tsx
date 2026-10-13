@@ -27,6 +27,8 @@ function crumbsForPathname(pathname: string): Crumb[] {
 
   if (section === "work-visas" && !slug) return [{ label: "Work visas" }]
 
+  if (section === "you" && !slug) return [{ label: "Where you stand" }]
+
   if (section === "states" && !slug) return [{ label: "All states" }]
 
   if (section === "united-states" && slug) {

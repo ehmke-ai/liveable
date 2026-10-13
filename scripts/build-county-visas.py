@@ -4,10 +4,9 @@ County worksite counts for the H-1B, H-2A, and H-2B maps.
 Writes public/data/county-visas.json:
   FIPS -> [h1b positions, h2a workers, h2b workers, population or null]
 
-Also writes public/data/county-h1b-fields.json:
-  FIPS -> {field: count} for certified H-1B positions by SOC major group, plus
-  "food": certified H-2B workers in food preparation and serving (SOC 35).
-  Zeros are omitted.
+Also writes public/data/county-visa-fields.json:
+  FIPS -> {field: {program: count}} for certified job slots by SOC major group.
+  Programs are h1b, specialty (H-1B1 and E-3), perm, h2a, and h2b. Zeros are omitted.
 
 And src/data/county-fips.json:
   state slug -> county slug -> FIPS, for the Where you stand page.
@@ -17,11 +16,15 @@ Sources (cached in scripts/.cache):
   https://www.dol.gov/agencies/eta/foreign-labor/performance
   - LCA_Disclosure_Data_FY2025_Q1..Q4.xlsx (quarterly, not cumulative)
   - H-2A_Disclosure_Data_FY2025_Q4.xlsx and H-2B_Disclosure_Data_FY2025_Q4.xlsx (full year)
+  - PERM_Disclosure_Data_FY2025_Q4.xlsx (full year, new ETA-9089 layout)
 
-H-1B counts positions on applications whose latest status is Certified, at the primary
-worksite. H-2A and H-2B count certified workers (including partial certifications) at the
-primary worksite. An application with several worksites is counted in the first county.
-A certified slot is not a person admitted.
+LCA counts positions whose latest status is Certified, at the primary worksite. H-1B
+updates the map total. H-1B1 and E-3 are counted only in the field file. H-2A and H-2B
+count certified workers (including partial certifications) at the primary worksite.
+PERM counts certified applications, including those later marked expired, one worker
+each, at the primary worksite. The published FY 2025 certified total is 138,093.
+An application with several worksites is counted in the first county.
+A certified slot is not a person admitted. The same worker can appear in more than one program.
 
 Most H-1B worksite counties are blank, so a ZIP is assigned to the 2020 county with the
 largest land-area overlap (Census ZCTA-county relationship). County names fill the rest.
@@ -43,20 +46,31 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, "scripts", ".cache")
 COUNTY_DIR = os.path.join(ROOT, "src", "data", "counties")
 OUT = os.path.join(ROOT, "public", "data", "county-visas.json")
-FIELDS_OUT = os.path.join(ROOT, "public", "data", "county-h1b-fields.json")
+FIELDS_OUT = os.path.join(ROOT, "public", "data", "county-visa-fields.json")
 FIPS_OUT = os.path.join(ROOT, "src", "data", "county-fips.json")
 
 # SOC major group -> field id on the Where you stand page. Anything else is "other".
-# "food" is not an H-1B bucket; it is H-2B occupation group 35, added separately.
 SOC_FIELD = {
     "15": "computer",
     "17": "engineering",
     "29": "healthcare",
+    "31": "healthSupport",
     "13": "business",
     "11": "management",
     "25": "education",
     "19": "science",
     "23": "legal",
+    "27": "arts",
+    "41": "sales",
+    "43": "office",
+    "45": "agriculture",
+    "37": "grounds",
+    "47": "construction",
+    "35": "food",
+    "51": "production",
+    "53": "transport",
+    "49": "maintenance",
+    "39": "personal",
 }
 
 STATE_SLUG = {
@@ -295,60 +309,79 @@ def slugify(name):
     return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", str(name).lower()))
 
 
-def h1b_cases():
-    """case number -> (workers, state, county, zip, soc) for the latest Certified H-1B decision."""
+def lca_program(visa):
+    """Map an LCA visa class onto a field-file program. H-1B also feeds the map total."""
+    text = str(visa or "").strip()
+    if text == "H-1B":
+        return "h1b"
+    if text.startswith("H-1B1") or text.startswith("E-3"):
+        return "specialty"
+    return None
+
+
+def lca_cases():
+    """case number -> (workers, state, county, zip, soc, program) for the latest Certified LCA."""
     chosen = {}
+    classes = Counter()
     for quarter in ("Q1", "Q2", "Q3", "Q4"):
         index, iterator = rows_of(f"LCA_Disclosure_Data_FY2025_{quarter}.xlsx")
         kept = 0
         for row in iterator:
             status = str(cell(row, index, "CASE_STATUS") or "")
-            if status != "Certified" or str(cell(row, index, "VISA_CLASS") or "") != "H-1B":
+            program = lca_program(cell(row, index, "VISA_CLASS"))
+            if status != "Certified" or not program:
                 continue
+            classes[str(cell(row, index, "VISA_CLASS") or "")] += 1
             case = str(cell(row, index, "CASE_NUMBER") or "")
             decision = str(cell(row, index, "DECISION_DATE") or "")
-            previous = chosen.get(case)
+            # Deduplicate within a program. A case that changes class keeps both filings.
+            key = (case, program)
+            previous = chosen.get(key)
             if previous and previous[0] > decision:
                 continue
             worksite_workers = as_int(cell(row, index, "WORKSITE_WORKERS"))
             total_positions = as_int(cell(row, index, "TOTAL_WORKER_POSITIONS"))
-            chosen[case] = (
+            chosen[key] = (
                 decision,
                 worksite_workers,
                 total_positions,
                 to_abbr(cell(row, index, "WORKSITE_STATE")),
                 str(cell(row, index, "WORKSITE_COUNTY") or ""),
                 cell(row, index, "WORKSITE_POSTAL_CODE"),
-                str(cell(row, index, "WORKSITE_CITY") or "").upper().strip(),
                 str(cell(row, index, "SOC_CODE") or ""),
+                program,
             )
             kept += 1
-        print(f"  LCA {quarter}: {kept:,} certified H-1B rows")
+        print(f"  LCA {quarter}: {kept:,} certified specialty rows")
+    print("  LCA classes", dict(classes))
     return chosen
 
 
-def add_h1b(counts, fields, cases, lookup, zips):
-    """Count certified positions at the primary worksite county, also by occupation field."""
+def add_lca(counts, fields, cases, lookup, zips):
+    """Count certified positions at the primary worksite county, by occupation field."""
     unmatched = Counter()
-    placed = missed = 0
-    chefs = 0
-    for _, workers, total, abbr, county, postal, _city, soc in cases.values():
+    placed = Counter()
+    missed = Counter()
+    for _, workers, total, abbr, county, postal, soc, program in cases.values():
         count = total if total > 0 else workers
         if count <= 0:
             continue
-        if str(soc).startswith("35"):
-            chefs += count
         fips = locate(abbr, county, postal, lookup, zips)
         if fips:
-            counts[fips][0] += count
-            fields[fips][soc_field(soc)] += count
-            placed += count
+            if program == "h1b":
+                counts[fips][0] += count
+            fields[fips][soc_field(soc)][program] += count
+            placed[program] += count
         else:
-            missed += count
+            missed[program] += count
             unmatched[(abbr or "?", norm_county(county) or zip5(postal) or "?")] += count
-    print(f"  H-1B placed {placed:,.0f}, missed {missed:,.0f} ({placed / (placed + missed):.1%})")
-    print(f"  H-1B food-preparation occupations (SOC 35), placed or not: {chefs:,.0f}")
-    print("  H-1B unmatched", unmatched.most_common(8))
+    for program in ("h1b", "specialty"):
+        got = placed[program]
+        lost = missed[program]
+        total = got + lost
+        rate = got / total if total else 0
+        print(f"  {program} placed {got:,.0f}, missed {lost:,.0f} ({rate:.1%})")
+    print("  LCA unmatched", unmatched.most_common(8))
 
 
 def certified_status(status):
@@ -358,7 +391,7 @@ def certified_status(status):
     )
 
 
-def add_guest(counts, filename, program, workers_column, lookup, zips, fields=None, food=False):
+def add_guest(counts, fields, filename, slot, program, workers_column, lookup, zips):
     index, iterator = rows_of(filename)
     matched = missed = 0
     unmatched = Counter()
@@ -381,17 +414,78 @@ def add_guest(counts, filename, program, workers_column, lookup, zips, fields=No
         soc = str(cell(row, index, "SOC_CODE") or "")
         fips = locate(abbr, county, postal, lookup, zips)
         if fips:
-            counts[fips][program] += workers
-            if food and soc.startswith("35"):
-                fields[fips]["food"] += workers
+            counts[fips][slot] += workers
+            fields[fips][soc_field(soc)][program] += workers
             matched += workers
         else:
             missed += workers
             unmatched[(abbr or "?", norm_county(county) or zip5(postal) or "?")] += workers
     total = matched + missed
-    label = "H-2A" if program == 1 else "H-2B"
+    label = "H-2A" if program == "h2a" else "H-2B"
     print(f"  {label} {matched:,.0f} matched, {missed:,.0f} missed ({matched / total:.1%})")
     print(f"  {label} unmatched", unmatched.most_common(12))
+
+
+def column_of(index, names):
+    for name in names:
+        if name in index:
+            return name
+    raise KeyError(f"none of {names} in {sorted(index)}")
+
+
+def add_perm(fields, filename, lookup, zips):
+    """Certified PERM applications, including ones later marked expired. One worker each."""
+    index, iterator = rows_of(filename)
+    soc_col = column_of(index, ("PWD_SOC_CODE", "SOC_CODE", "PW_SOC_CODE"))
+    state_col = column_of(index, ("PRIMARY_WORKSITE_STATE", "WORKSITE_STATE", "JOB_INFO_WORK_STATE"))
+    county_col = next(
+        (name for name in ("PRIMARY_WORKSITE_COUNTY", "WORKSITE_COUNTY", "JOB_INFO_WORK_COUNTY") if name in index),
+        None,
+    )
+    postal_col = column_of(
+        index, ("PRIMARY_WORKSITE_POSTAL_CODE", "WORKSITE_POSTAL_CODE", "JOB_INFO_WORK_POSTAL_CODE")
+    )
+    worker_col = next(
+        (name for name in ("TOTAL_WORKERS", "NBR_WORKERS", "NUMBER_OF_WORKERS") if name in index),
+        None,
+    )
+    statuses = Counter()
+    chosen = {}
+    for row in iterator:
+        status = str(cell(row, index, "CASE_STATUS") or "").strip()
+        statuses[status] += 1
+        if not status.lower().startswith("certified"):
+            continue
+        case = str(cell(row, index, "CASE_NUMBER") or "")
+        decision = str(cell(row, index, "DECISION_DATE") or "")
+        previous = chosen.get(case)
+        if previous and previous[0] >= decision:
+            continue
+        workers = as_int(cell(row, index, worker_col)) if worker_col else 1
+        if workers <= 0:
+            workers = 1
+        chosen[case] = (
+            decision,
+            to_abbr(cell(row, index, state_col)),
+            str(cell(row, index, county_col) or "") if county_col else "",
+            cell(row, index, postal_col),
+            str(cell(row, index, soc_col) or ""),
+            workers,
+        )
+    placed = missed = 0
+    unmatched = Counter()
+    for _, abbr, county, postal, soc, workers in chosen.values():
+        fips = locate(abbr, county, postal, lookup, zips)
+        if fips:
+            fields[fips][soc_field(soc)]["perm"] += workers
+            placed += workers
+        else:
+            missed += workers
+            unmatched[(abbr or "?", norm_county(county) or zip5(postal) or "?")] += workers
+    total = placed + missed
+    print("  PERM statuses", dict(statuses))
+    print(f"  PERM placed {placed:,.0f}, missed {missed:,.0f} ({placed / total:.1%})")
+    print("  PERM unmatched", unmatched.most_common(8))
 
 
 def main():
@@ -402,22 +496,33 @@ def main():
     print(f"  {len(lookup):,} county names, {len(zips):,} ZIPs, {len(population):,} populations")
 
     counts = defaultdict(lambda: [0, 0, 0])
-    fields = defaultdict(lambda: defaultdict(int))
-    print("H-1B")
-    add_h1b(counts, fields, h1b_cases(), lookup, zips)
+    fields = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    print("LCA")
+    add_lca(counts, fields, lca_cases(), lookup, zips)
     print("H-2A")
-    add_guest(counts, "H-2A_Disclosure_Data_FY2025_Q4.xlsx", 1, "TOTAL_WORKERS_H2A_CERTIFIED", lookup, zips)
+    add_guest(
+        counts,
+        fields,
+        "H-2A_Disclosure_Data_FY2025_Q4.xlsx",
+        1,
+        "h2a",
+        "TOTAL_WORKERS_H2A_CERTIFIED",
+        lookup,
+        zips,
+    )
     print("H-2B")
     add_guest(
         counts,
+        fields,
         "H-2B_Disclosure_Data_FY2025_Q4.xlsx",
         2,
+        "h2b",
         "TOTAL_WORKERS_CERTIFIED",
         lookup,
         zips,
-        fields=fields,
-        food=True,
     )
+    print("PERM")
+    add_perm(fields, "PERM_Disclosure_Data_FY2025_Q4.xlsx", lookup, zips)
 
     out = {}
     for fips in fips_set | ({"11001"} if "11001" in population else set()):
@@ -440,12 +545,23 @@ def main():
     print("top H-1B", ranked)
     field_out = {}
     field_totals = Counter()
+    program_totals = Counter()
     for fips, buckets in fields.items():
-        kept = {key: value for key, value in buckets.items() if value}
+        kept = {}
+        for field, programs in buckets.items():
+            nonzero = {key: value for key, value in programs.items() if value}
+            if not nonzero:
+                continue
+            kept[field] = nonzero
+            for key, value in nonzero.items():
+                field_totals[field] += value
+                program_totals[key] += value
         if kept:
             field_out[fips] = kept
-            field_totals.update(kept)
+    print("program totals", dict(program_totals))
     print("field totals", dict(field_totals))
+    for label, fips in (("Santa Clara", "06085"), ("Fresno", "06019"), ("King", "53033")):
+        print(label, field_out.get(fips))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as handle:
         json.dump(out, handle, separators=(",", ":"))
@@ -454,6 +570,10 @@ def main():
         json.dump(field_out, handle, separators=(",", ":"))
         handle.write("\n")
     write_fips_index()
+    stale = os.path.join(ROOT, "public", "data", "county-h1b-fields.json")
+    if os.path.exists(stale):
+        os.remove(stale)
+        print("removed", stale)
     print("wrote", OUT, os.path.getsize(OUT))
     print("wrote", FIELDS_OUT, os.path.getsize(FIELDS_OUT))
 
