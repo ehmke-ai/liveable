@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react"
 import { NativeShareTrendChart } from "@/components/native-share-trend-chart"
 import { PlaceSearch } from "@/components/place-search"
 import { PoliticalLeanTrendChart } from "@/components/political-lean-trend-chart"
-import { PageHeader, RankingTable, Stat, Swatch } from "@/components/topic-page"
+import { PageHeader, RankingTable, Swatch } from "@/components/topic-page"
 import { UsCountyMap } from "@/components/us-county-map"
 import { UsMap } from "@/components/us-map"
 import { Badge } from "@/components/ui/badge"
@@ -22,10 +22,8 @@ import { COUNTY_HISTORY_YEARS } from "@/lib/county-history"
 import {
   COLORS,
   demographicsData,
-  formatMedianAge,
   getCountryBySlug,
   getCountryRankings,
-  getNativeShareHistory,
 } from "@/lib/demographics"
 import { usCountyMapData } from "@/lib/state-data"
 import {
@@ -45,9 +43,6 @@ import {
 export const metadata: Metadata = {
   title: { absolute: "basedmetrics.com — America by the numbers" },
 }
-
-/** 2024 national popular vote, certified results (FEC) */
-const NATIONAL_2024 = { trump: 49.8, harris: 48.3 }
 
 const LEADERBOARD_SIZE = 5
 
@@ -156,8 +151,6 @@ export default function HomePage() {
   if (!us) throw new Error("Missing United States data")
 
   const countyMapData = usCountyMapData()
-  const nativeHistory = getNativeShareHistory(us.country)
-  const nativeChange = us.native - nativeHistory[0].native
   const rankings = getCountryRankings(us.country)
 
   return (
@@ -168,35 +161,6 @@ export default function HomePage() {
       >
         <PlaceSearch className="mt-5 max-w-md" />
       </PageHeader>
-
-      <Card className="border-border bg-card shadow-none">
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-            <Stat label="Non-Hispanic White" value={`${us.native}%`} color={COLORS.native} />
-            <Stat
-              label={`Change since ${nativeHistory[0].year}`}
-              value={`${nativeChange > 0 ? "+" : ""}${nativeChange} pts`}
-              color={COLORS.native}
-            />
-            <Stat label="Foreign-born" value={`${us.foreignBorn}%`} />
-            <Stat
-              label="Christian"
-              value={`${us.catholic + us.protestant + us.orthodox}%`}
-              color={COLORS.protestant}
-            />
-            <Stat
-              label="2024 popular vote"
-              value={`R+${(NATIONAL_2024.trump - NATIONAL_2024.harris).toFixed(1)}`}
-              color={COLORS.rightWing}
-            />
-            <Stat
-              label="NH White median age"
-              value={`${formatMedianAge(us.medianAge)} yrs`}
-              color={COLORS.medianAge}
-            />
-          </dl>
-        </CardContent>
-      </Card>
 
       <SectionHeader id="map" title="The map">
         Switch metrics, hover a state for a preview, and click it for its full profile and county
@@ -216,7 +180,7 @@ export default function HomePage() {
       </SectionHeader>
       <div className="grid gap-x-4 gap-y-7 md:grid-cols-2">
         {leaderboards.map((board) => (
-          <section key={board.title}>
+          <section key={board.title} className="min-w-0">
             <h3 className="eyebrow mb-2">{board.title}</h3>
             <RankingTable
               className=""

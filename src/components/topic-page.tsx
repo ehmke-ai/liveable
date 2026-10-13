@@ -114,51 +114,90 @@ export function RankingTable({
   className?: string
 }) {
   return (
-    <Card className={`${className} border-border bg-card shadow-none`}>
+    <Card className={`${className} min-w-0 border-border bg-card shadow-none`}>
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Rank</TableHead>
-              <TableHead>{nameLabel}</TableHead>
-              <TableHead className="text-right">{valueLabel}</TableHead>
-              <TableHead className="min-w-[8rem]">{intensityLabel}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={row.country}>
-                <TableCell>
+        <ul className="md:hidden">
+          {rows.map((row, i) => (
+            <li key={row.country} className="border-b px-3 py-2.5 last:border-b-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
                   <Badge
                     variant="secondary"
-                    className={`min-w-7 justify-center rounded-full ${badgeClassName}`}
+                    className={`min-w-7 shrink-0 justify-center rounded-full ${badgeClassName}`}
                   >
                     {row.rank ?? i + 1}
                   </Badge>
-                </TableCell>
-                <TableCell className="font-medium">
-                  <Link href={row.href ?? countryHref(row.country)} className="hover:underline">
+                  <Link
+                    href={row.href ?? countryHref(row.country)}
+                    className="min-w-0 font-medium hover:underline"
+                  >
                     {row.country}
                   </Link>
-                </TableCell>
-                <TableCell className="text-right font-medium tabular-nums" style={{ color }}>
+                </div>
+                <span
+                  className="max-w-[55%] min-w-0 text-right text-[13px] leading-snug font-medium"
+                  style={{ color }}
+                >
                   {row.value}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className="block h-2 min-w-24 overflow-hidden rounded-full bg-muted"
-                    aria-hidden
-                  >
-                    <span
-                      className="block h-full rounded-full"
-                      style={{ width: `${row.intensity * 100}%`, backgroundColor: color }}
-                    />
-                  </span>
-                </TableCell>
+                </span>
+              </div>
+              <span
+                className="mt-2 block h-2 overflow-hidden rounded-full bg-muted"
+                aria-hidden
+              >
+                <span
+                  className="block h-full rounded-full"
+                  style={{ width: `${row.intensity * 100}%`, backgroundColor: color }}
+                />
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Rank</TableHead>
+                <TableHead>{nameLabel}</TableHead>
+                <TableHead className="text-right">{valueLabel}</TableHead>
+                <TableHead className="min-w-[8rem]">{intensityLabel}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow key={row.country}>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={`min-w-7 justify-center rounded-full ${badgeClassName}`}
+                    >
+                      {row.rank ?? i + 1}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <Link href={row.href ?? countryHref(row.country)} className="hover:underline">
+                      {row.country}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums" style={{ color }}>
+                    {row.value}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className="block h-2 min-w-24 overflow-hidden rounded-full bg-muted"
+                      aria-hidden
+                    >
+                      <span
+                        className="block h-full rounded-full"
+                        style={{ width: `${row.intensity * 100}%`, backgroundColor: color }}
+                      />
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   )

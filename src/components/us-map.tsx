@@ -329,7 +329,7 @@ export function UsMap({
   electionCounties: { counties: UsCountyRow[]; states: Record<string, string> }
 }) {
   const [features, setFeatures] = useState<StateFeature[]>([])
-  const [view, setView] = useState<MapView>("native")
+  const [view, setView] = useState<MapView>("visas")
   // Which level the 2024 election tab shows; remembered when switching away and back
   const [electionLevel, setElectionLevel] = useState<MapLevel>("county")
   const [costLevel, setCostLevel] = useState<MapLevel>("county")
@@ -498,6 +498,22 @@ export function UsMap({
         <Button
           type="button"
           size="sm"
+          variant={view === "visas" ? "default" : "secondary"}
+          onClick={() => setView("visas")}
+        >
+          Work visas
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={costActive ? "default" : "secondary"}
+          onClick={() => setView(costLevel === "county" ? "costCounty" : "costOfLiving")}
+        >
+          Cost of living
+        </Button>
+        <Button
+          type="button"
+          size="sm"
           variant={view === "native" ? "default" : "secondary"}
           onClick={() => setView("native")}
         >
@@ -518,22 +534,6 @@ export function UsMap({
           onClick={() => setView("religion")}
         >
           Religion
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={costActive ? "default" : "secondary"}
-          onClick={() => setView(costLevel === "county" ? "costCounty" : "costOfLiving")}
-        >
-          Cost of living
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "visas" ? "default" : "secondary"}
-          onClick={() => setView("visas")}
-        >
-          Work visas
         </Button>
         <Button
           type="button"
