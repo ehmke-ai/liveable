@@ -18,6 +18,7 @@ import {
 } from "@/components/us-county-cost-map"
 import { UsCountyElectionMap } from "@/components/us-county-election-map"
 import { UsCountyReligionMap } from "@/components/us-county-religion-map"
+import { UsCountyVisaMap } from "@/components/us-county-visa-map"
 import type { UsCountyRow } from "@/components/us-county-map"
 import {
   ANTI_IMMIG_COLOR,
@@ -308,7 +309,7 @@ function strokeFor(selected: boolean, hovered: boolean): string {
 }
 
 /** The map tabs: the state metrics, plus views that only exist at county level */
-type MapView = MapMetric | "election2024County" | "religion" | "costCounty"
+type MapView = MapMetric | "election2024County" | "religion" | "costCounty" | "visas"
 
 /** Which level a tab with both a county and a state map shows */
 type MapLevel = "county" | "state"
@@ -316,7 +317,8 @@ type MapLevel = "county" | "state"
 /**
  * `countyMap` replaces the state map while Demographics is selected (the county-level
  * UsCountyMap), the county-level UsCountyElectionMap while 2024 election is shown by county, and
- * UsCountyReligionMap while Religion is selected. All stay mounted when hidden so they keep their state.
+ * UsCountyReligionMap while Religion is selected, and UsCountyVisaMap while Work visas is
+ * selected. All stay mounted when hidden so they keep their state.
  */
 export function UsMap({
   countyMap,
@@ -333,7 +335,9 @@ export function UsMap({
   const [costLevel, setCostLevel] = useState<MapLevel>("county")
   // County-only views hide the state map, so any state metric will do behind them
   const metric: MapMetric =
-    view === "election2024County" || view === "religion" || view === "costCounty" ? "native" : view
+    view === "election2024County" || view === "religion" || view === "costCounty" || view === "visas"
+      ? "native"
+      : view
   const electionActive = view === "election2024" || view === "election2024County"
   const costActive = view === "costOfLiving" || view === "costCounty"
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -404,7 +408,8 @@ export function UsMap({
   const showElection = view === "election2024County"
   const showReligion = view === "religion"
   const showCost = view === "costCounty"
-  const showStates = !showCounties && !showElection && !showReligion && !showCost
+  const showVisas = view === "visas"
+  const showStates = !showCounties && !showElection && !showReligion && !showCost && !showVisas
 
   const labels = useMemo(
     () =>
@@ -525,6 +530,14 @@ export function UsMap({
         <Button
           type="button"
           size="sm"
+          variant={view === "visas" ? "default" : "secondary"}
+          onClick={() => setView("visas")}
+        >
+          Work visas
+        </Button>
+        <Button
+          type="button"
+          size="sm"
           variant={view === "antiImmig" ? "default" : "secondary"}
           onClick={() => setView("antiImmig")}
         >
@@ -582,6 +595,13 @@ export function UsMap({
       <div className={showCost ? undefined : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
           <UsCountyCostMap {...electionCounties} legendExtra={costLevelToggle} />
+          <div className="hidden sm:block sm:w-32" aria-hidden />
+        </div>
+      </div>
+
+      <div className={showVisas ? undefined : "hidden"}>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <UsCountyVisaMap {...electionCounties} />
           <div className="hidden sm:block sm:w-32" aria-hidden />
         </div>
       </div>

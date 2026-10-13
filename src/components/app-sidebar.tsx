@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  Briefcase,
   ChevronRight,
   Flag,
   Globe2,
@@ -44,6 +45,7 @@ type NavLink = {
 const usLinks: NavLink[] = [
   { href: "/", label: "United States", icon: Flag },
   { href: "/states", label: "All states", icon: Table2 },
+  { href: "/work-visas", label: "Work visas", icon: Briefcase },
 ]
 
 const europeLinks: NavLink[] = [

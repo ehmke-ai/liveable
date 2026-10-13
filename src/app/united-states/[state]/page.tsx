@@ -174,7 +174,7 @@ export default async function StatePage({
           <header className="mt-12 mb-7">
             <h2 className="section-title">Counties</h2>
             <p className="section-sub">
-              Demographics, the 2024 election, religion, and cost of living across all {counties.length}{" "}
+              Demographics, the 2024 election, religion, cost of living, and certified work visas across all {counties.length}{" "}
               {state.state} {COUNTY_NOUN[state.abbr] ?? "counties"}. Switch views above the map,
               hover a county to preview its figures, click to open its page — or browse the full
               list below.
